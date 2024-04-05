@@ -1,0 +1,7 @@
+package com.degressly.proxy.dto.actions.server.parser;
+
+public enum Encoding {
+    INT_1, INT_2, INT_3, INT_4, INT_6, INT_8, INT_LENGTHENCODED,
+
+    STRING_FIXEDLENGTH, STRING_NULLTERMINATED, STRING_VARIABLELENGTH, STRING_LENGTHENCODED, STRING_RESTOFPACKET
+}

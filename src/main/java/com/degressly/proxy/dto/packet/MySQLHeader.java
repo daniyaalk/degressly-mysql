@@ -1,4 +1,4 @@
-package com.degressly.proxy.dto;
+package com.degressly.proxy.dto.packet;
 
 import lombok.Data;
 

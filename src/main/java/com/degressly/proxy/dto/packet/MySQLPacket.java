@@ -1,12 +1,12 @@
-package com.degressly.proxy.dto;
+package com.degressly.proxy.dto.packet;
 
 import lombok.Data;
 import lombok.ToString;
 
 @Data
 @ToString(callSuper = true)
-public class MySQLClientPacket {
+public class MySQLPacket {
     private MySQLHeader header = new MySQLHeader();
-    private ClientMySQLBody body = new ClientMySQLBody();
+    private byte[] body;
 }
 
