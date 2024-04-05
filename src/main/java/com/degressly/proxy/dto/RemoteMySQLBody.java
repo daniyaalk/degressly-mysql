@@ -3,6 +3,6 @@ package com.degressly.proxy.dto;
 import lombok.Data;
 
 @Data
-public class BaseMysqlBody {
+public class RemoteMySQLBody {
     private byte[] raw;
 }

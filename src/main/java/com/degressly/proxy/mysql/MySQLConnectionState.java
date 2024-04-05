@@ -2,6 +2,8 @@ package com.degressly.proxy.mysql;
 
 import com.degressly.proxy.dto.MySQLClientPacket;
 import com.degressly.proxy.dto.MySQLRemotePacket;
+import com.degressly.proxy.mysql.decoders.MySQLClientPacketDecoder;
+import com.degressly.proxy.mysql.decoders.MySQLRemotePacketDecoder;
 import io.netty.channel.Channel;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Slf4j
 @Getter
@@ -26,9 +30,11 @@ public class MySQLConnectionState {
     @Setter
     private Channel remoteChannel;
 
-    @Autowired MySQLRemotePacketDecoder remotePacketDecoder;
+    @Autowired
+    MySQLRemotePacketDecoder remotePacketDecoder;
 
-    @Autowired MySQLClientPacketDecoder clientPacketDecoder;
+    @Autowired
+    MySQLClientPacketDecoder clientPacketDecoder;
 
     public MySQLConnectionState(long id) { this.id = id; }
 
@@ -40,14 +46,15 @@ public class MySQLConnectionState {
     }
 
     public void processRemoteMessage(byte[] byteArray) {
-        var packet = new MySQLRemotePacket();
-        remotePacketDecoder.process(packet, byteArray);
+        List<MySQLRemotePacket> packets = remotePacketDecoder.processMessage(byteArray, id);
 
-        log.info("Remote packet: {}", packet);
-        log.info("Parsed packet body: {}", new String(packet.getBody().getRaw()));
-        if (!isAuthDone && packet.getHeader().getSequenceNumber() == 4 && packet.getBody().getRaw()[3] == 0x02) {
-            isAuthDone = true;
-            log.info("Auth done");
+        for (MySQLRemotePacket packet: packets) {
+            log.info("Remote packet: {}", packet);
+            log.info("Parsed packet body: {}", new String(packet.getBody().getRaw()));
+            if (!isAuthDone && packet.getHeader().getSequence() == 4 && packet.getBody().getRaw()[3] == 0x02) {
+                isAuthDone = true;
+                log.info("Auth done");
+            }
         }
     }
 }
