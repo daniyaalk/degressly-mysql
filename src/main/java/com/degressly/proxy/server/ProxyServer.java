@@ -17,33 +17,36 @@ import org.springframework.stereotype.Service;
 @Service
 public class ProxyServer {
 
-    private static final int port = 3307;
+	private static final int port = 3307;
 
-    @Autowired
-    private ChannelInitializer<SocketChannel> initializer;
+	@Autowired
+	private ChannelInitializer<SocketChannel> initializer;
 
-    @PostConstruct
-    public void init() {
-        EventLoopGroup bossGroup = new NioEventLoopGroup();
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+	@PostConstruct
+	public void init() {
+		EventLoopGroup bossGroup = new NioEventLoopGroup();
+		EventLoopGroup workerGroup = new NioEventLoopGroup();
 
-        try {
-            ServerBootstrap b = new ServerBootstrap();
-            b.group(bossGroup, workerGroup)
-                    .channel(NioServerSocketChannel.class)
-                    .childHandler(initializer)
-                    .option(ChannelOption.SO_BACKLOG, 128)
-                    .childOption(ChannelOption.SO_KEEPALIVE, true);
+		try {
+			ServerBootstrap b = new ServerBootstrap();
+			b.group(bossGroup, workerGroup)
+				.channel(NioServerSocketChannel.class)
+				.childHandler(initializer)
+				.option(ChannelOption.SO_BACKLOG, 128)
+				.childOption(ChannelOption.SO_KEEPALIVE, true);
 
-            ChannelFuture f = b.bind(port).sync();
+			ChannelFuture f = b.bind(port).sync();
 
-            f.channel().closeFuture().sync();
+			f.channel().closeFuture().sync();
 
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } finally {
-            workerGroup.shutdownGracefully();
-            bossGroup.shutdownGracefully();
-        }
-    }
+		}
+		catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+		finally {
+			workerGroup.shutdownGracefully();
+			bossGroup.shutdownGracefully();
+		}
+	}
+
 }

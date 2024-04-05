@@ -6,7 +6,9 @@ import lombok.ToString;
 @Data
 @ToString(callSuper = true)
 public class MySQLPacket {
-    private MySQLHeader header = new MySQLHeader();
-    private byte[] body;
-}
 
+	private MySQLHeader header = new MySQLHeader();
+
+	private byte[] body;
+
+}

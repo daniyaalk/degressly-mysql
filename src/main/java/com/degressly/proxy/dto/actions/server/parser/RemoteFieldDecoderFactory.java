@@ -12,19 +12,20 @@ import java.util.Map;
 @Service
 public class RemoteFieldDecoderFactory {
 
-    @Autowired
-    private List<FieldDecoder> decoders;
+	@Autowired
+	private List<FieldDecoder> decoders;
 
-    private Map<Encoding, FieldDecoder> decoderMap;
+	private Map<Encoding, FieldDecoder> decoderMap;
 
-    @PostConstruct
-    public void init() {
-        Map<Encoding, FieldDecoder> map = new HashMap<>();
-        decoders.forEach((decoder) -> map.put(decoder.getEncoding(), decoder));
-        decoderMap = Collections.unmodifiableMap(map);
-    }
+	@PostConstruct
+	public void init() {
+		Map<Encoding, FieldDecoder> map = new HashMap<>();
+		decoders.forEach((decoder) -> map.put(decoder.getEncoding(), decoder));
+		decoderMap = Collections.unmodifiableMap(map);
+	}
 
-    public FieldDecoder get(Encoding encoding) {
-        return decoderMap.get(encoding);
-    }
+	public FieldDecoder get(Encoding encoding) {
+		return decoderMap.get(encoding);
+	}
+
 }

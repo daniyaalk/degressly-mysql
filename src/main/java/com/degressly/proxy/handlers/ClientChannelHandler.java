@@ -18,57 +18,57 @@ import org.springframework.stereotype.Component;
 @Component
 public class ClientChannelHandler extends ChannelInboundHandlerAdapter {
 
-    private MySQLConnectionState mySQLConnectionState;
+	private MySQLConnectionState mySQLConnectionState;
 
-    @Autowired
-    private ApplicationContext applicationContext;
+	@Autowired
+	private ApplicationContext applicationContext;
 
-    public ClientChannelHandler(MySQLConnectionState mySQLConnectionState){
-        this.mySQLConnectionState = mySQLConnectionState;
-    }
+	public ClientChannelHandler(MySQLConnectionState mySQLConnectionState) {
+		this.mySQLConnectionState = mySQLConnectionState;
+	}
 
-    @PostConstruct
-    public void init() {
-        mySQLConnectionState = applicationContext.getBean(MySQLConnectionState.class, mySQLConnectionState.getId());
-    }
+	@PostConstruct
+	public void init() {
+		mySQLConnectionState = applicationContext.getBean(MySQLConnectionState.class, mySQLConnectionState.getId());
+	}
 
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) {
-        log.info("Channel active: {}", ctx);
-        mySQLConnectionState.setClientChannel(ctx.channel());
-        var clientChannel = mySQLConnectionState.getClientChannel();
+	@Override
+	public void channelActive(ChannelHandlerContext ctx) {
+		log.info("Channel active: {}", ctx);
+		mySQLConnectionState.setClientChannel(ctx.channel());
+		var clientChannel = mySQLConnectionState.getClientChannel();
 
-        Bootstrap b = new Bootstrap();
-        b.group(clientChannel.eventLoop())
-                .channel(clientChannel.getClass())
-                .handler(applicationContext.getBean(RemoteChannelHandler.class, mySQLConnectionState));
-        ChannelFuture f = b.connect("172.29.56.7", 3306);
-        var remoteChannel = f.channel();
-        mySQLConnectionState.setRemoteChannel(remoteChannel);
-    }
+		Bootstrap b = new Bootstrap();
+		b.group(clientChannel.eventLoop())
+			.channel(clientChannel.getClass())
+			.handler(applicationContext.getBean(RemoteChannelHandler.class, mySQLConnectionState));
+		ChannelFuture f = b.connect("172.29.56.7", 3306);
+		var remoteChannel = f.channel();
+		mySQLConnectionState.setRemoteChannel(remoteChannel);
+	}
 
+	@Override
+	public void channelRead(ChannelHandlerContext ctx, Object msg) {
+		ByteBuf recv = (ByteBuf) msg;
+		byte[] byteArray = new byte[recv.readableBytes()];
+		int i = 0;
 
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        ByteBuf recv = (ByteBuf) msg;
-        byte[] byteArray = new byte[recv.readableBytes()];
-        int i = 0;
+		while (recv.isReadable()) {
+			byteArray[i] = recv.readByte();
+			i++;
+		}
+		// String hexchars = HexFormat.ofDelimiter(",
+		// ").withPrefix("#").formatHex(byteArray);
+		recv.release();
 
-        while (recv.isReadable()) {
-            byteArray[i] = recv.readByte();
-            i++;
-        }
-//        String hexchars = HexFormat.ofDelimiter(", ").withPrefix("#").formatHex(byteArray);
-        recv.release();
+		// log.info("Client channel input: {}", new String(byteArray));
+		// log.info("Hex: {}", hexchars);
+		// log.info("Packet: {}", mySQLClientPacketDecoderService.process(byteArray));
+		mySQLConnectionState.processClientMessage(byteArray);
 
-//        log.info("Client channel input: {}", new String(byteArray));
-//        log.info("Hex: {}", hexchars);
-//        log.info("Packet: {}", mySQLClientPacketDecoderService.process(byteArray));
-        mySQLConnectionState.processClientMessage(byteArray);
-
-        ByteBuf send = ctx.alloc().buffer(byteArray.length);
-        send.writeBytes(byteArray);
-        mySQLConnectionState.getRemoteChannel().writeAndFlush(send);
-    }
+		ByteBuf send = ctx.alloc().buffer(byteArray.length);
+		send.writeBytes(byteArray);
+		mySQLConnectionState.getRemoteChannel().writeAndFlush(send);
+	}
 
 }

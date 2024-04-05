@@ -17,22 +17,22 @@ import java.util.concurrent.atomic.AtomicLong;
 @Component
 public class MysqlProxyChannelInitializer extends ChannelInitializer<SocketChannel> {
 
-    @Autowired
-    AtomicLong taskId;
+	@Autowired
+	AtomicLong taskId;
 
-    @Autowired
-    ApplicationContext applicationContext;
+	@Autowired
+	ApplicationContext applicationContext;
 
-    @Override
-    protected void initChannel(SocketChannel ch) {
-        log.info("Channel initialized");
+	@Override
+	protected void initChannel(SocketChannel ch) {
+		log.info("Channel initialized");
 
-        MySQLConnectionState mySQLConnectionState = applicationContext.getBean(MySQLConnectionState.class, taskId.getAndIncrement());
+		MySQLConnectionState mySQLConnectionState = applicationContext.getBean(MySQLConnectionState.class,
+				taskId.getAndIncrement());
 
-        ClientChannelHandler bean = applicationContext.getBean(ClientChannelHandler.class, mySQLConnectionState);
-        log.info("Bean initialized: {}", bean);
-        ch.pipeline().addLast(
-               new LoggingHandler(LogLevel.INFO),
-                bean);
-    }
+		ClientChannelHandler bean = applicationContext.getBean(ClientChannelHandler.class, mySQLConnectionState);
+		log.info("Bean initialized: {}", bean);
+		ch.pipeline().addLast(new LoggingHandler(LogLevel.INFO), bean);
+	}
+
 }

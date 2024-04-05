@@ -4,7 +4,11 @@ import lombok.Data;
 
 @Data
 public class MySQLHeader {
-        private byte[] raw;
-        private int bodyLength;
-        private int sequence;
+
+	private byte[] raw;
+
+	private int bodyLength;
+
+	private int sequence;
+
 }

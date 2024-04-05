@@ -7,6 +7,9 @@ import java.util.List;
 
 @Data
 public class ResultSet {
-    private int columnCount;
-    private List<Column> columnList = new ArrayList<>();
+
+	private int columnCount;
+
+	private List<Column> columnList = new ArrayList<>();
+
 }

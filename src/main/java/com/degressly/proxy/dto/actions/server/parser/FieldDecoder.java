@@ -5,6 +5,8 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public interface FieldDecoder {
 
-    Pair<Object, Integer> decode(MySQLPacket packet, int offset);
-    Encoding getEncoding();
+	Pair<Object, Integer> decode(MySQLPacket packet, int offset);
+
+	Encoding getEncoding();
+
 }
