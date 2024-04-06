@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @Getter
@@ -26,7 +27,7 @@ public class MySQLConnectionState {
 
 	private boolean isAuthDone;
 
-	private boolean awaitingResponse;
+	private boolean awaitingResponseResultSet;
 
 	private ResultSet partialResultSet = null;
 
@@ -40,7 +41,7 @@ public class MySQLConnectionState {
 	MySQLPacketDecoder packetDecoder;
 
 	@Autowired
-	ServerResponseProcessorService serverResponseProcessorService;
+	RemoteResponseProcessorService remoteResponseProcessorService;
 
 	public MySQLConnectionState(long id) {
 		this.id = id;
@@ -56,7 +57,7 @@ public class MySQLConnectionState {
 				MySQLClientAction action = convertToClientAction(packet);
 				if (CommandCode.COM_QUERY.equals(action.getCommandCode())) {
 					log.debug("awaiting response set to true");
-					awaitingResponse = true;
+					awaitingResponseResultSet = true;
 				}
 				log.info("Client action: {}", action);
 			}
@@ -65,7 +66,7 @@ public class MySQLConnectionState {
 
 	}
 
-	public void processRemoteMessage(byte[] byteArray) {
+	public Optional<Byte[]> processRemoteMessage(byte[] byteArray) {
 		List<MySQLPacket> packets = packetDecoder.processMessage(byteArray, id);
 
 		for (var packet : packets) {
@@ -77,23 +78,30 @@ public class MySQLConnectionState {
 			}
 		}
 
-		if (isAuthDone && awaitingResponse) {
-			if (Objects.isNull(partialResultSet)) {
-				serverResponseProcessorService.processFirstPage(id, packets);
-				partialResultSet = serverResponseProcessorService.parseColumns(id, packets, 1);
-			}
-			else {
-				partialResultSet = serverResponseProcessorService.parseColumns(id, packets, 0);
-			}
+		if (isAuthDone && awaitingResponseResultSet) {
+			loadPartialResultSet(packets);
+		}
 
-			partialResultSet = serverResponseProcessorService.parseRows(id, packets);
+		return Optional.empty();
+	}
 
-			log.info("{}", partialResultSet);
+	private void loadPartialResultSet(List<MySQLPacket> packets) {
+		if (Objects.isNull(partialResultSet)) {
+			// First packet contains
+			remoteResponseProcessorService.processFirstPage(id, packets);
+			partialResultSet = remoteResponseProcessorService.parseColumns(id, packets, 1);
+		}
+		else {
+			partialResultSet = remoteResponseProcessorService.parseColumns(id, packets, 0);
+		}
 
-			if (partialResultSet.isResultSetComplete()) {
-				partialResultSet = null;
-				awaitingResponse = false;
-			}
+		partialResultSet = remoteResponseProcessorService.parseRows(id, packets);
+
+		log.info("{}", partialResultSet);
+
+		if (partialResultSet.isResultSetComplete()) {
+			partialResultSet = null;
+			awaitingResponseResultSet = false;
 		}
 	}
 

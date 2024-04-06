@@ -19,6 +19,10 @@ public class Utils {
 		};
 	}
 
+	// public byte[] getDataFieldLengthBytes(int count) {
+	// if (count >)
+	// }
+
 	public static boolean isEOFPacket(MySQLPacket packet) {
 		// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_eof_packet.html
 		return packet.getHeader().getBodyLength() < 9 && ((packet.getBody()[0] & 0xff) == 0xfe);

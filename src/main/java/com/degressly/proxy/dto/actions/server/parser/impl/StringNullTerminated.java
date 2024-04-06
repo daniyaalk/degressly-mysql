@@ -3,6 +3,7 @@ package com.degressly.proxy.dto.actions.server.parser.impl;
 import com.degressly.proxy.dto.actions.server.parser.Encoding;
 import com.degressly.proxy.dto.actions.server.parser.FieldDecoder;
 import com.degressly.proxy.dto.packet.MySQLPacket;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Component;
 
@@ -16,11 +17,16 @@ public class StringNullTerminated implements FieldDecoder {
 		var sb = new StringBuffer();
 
 		while (offset < packet.getBody().length && ((packet.getBody()[offset] & 0xff) != 0x00)) {
-			sb.append(packet.getBody()[offset]);
+			sb.append((char) packet.getBody()[offset]);
 			offset++;
 		}
 
-		return Pair.of(sb.toString(), 1);
+		return Pair.of(sb.toString(), offset);
+	}
+
+	@Override
+	public byte[] encode(String value) {
+		return ArrayUtils.addAll(value.getBytes(), (byte) 0x00);
 	}
 
 	@Override

@@ -25,6 +25,11 @@ public class StringLenEnc implements FieldDecoder {
 	}
 
 	@Override
+	public byte[] encode(String value) {
+		return new byte[0];
+	}
+
+	@Override
 	public Encoding getEncoding() {
 		return Encoding.STRING_LENGTH_ENCODED;
 	}

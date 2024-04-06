@@ -18,7 +18,7 @@ import java.util.Map;
 
 @Slf4j
 @Service
-public class ServerResponseProcessorService {
+public class RemoteResponseProcessorService {
 
 	public static final Map<Long, ResultSet> partialResults = new HashMap<>();
 
@@ -45,20 +45,24 @@ public class ServerResponseProcessorService {
 		partialResults.put(id, resultSet);
 
 		if (packets.size() == 1 && Utils.isErrorPacket(packets.getFirst())) {
-			var packet = packets.get(0);
-			resultSet.setError(true);
-			resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 1, 3));
-			resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
-			resultSet.setErrorMessage((String) remoteFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED)
-				.decode(packet, 5)
-				.getLeft());
-			resultSet.setColumnCount(0);
-			resultSet.setResultSetComplete(true);
-			cleanUpAfterIngestingHeaders(id, 0);
-			return resultSet;
+			return prepareErrorResultSet(id, packets, resultSet);
 		}
 
 		resultSet.setColumnCount(Utils.calculateIntLenEnc(packets.getFirst().getBody(), 0).getLeft());
+		return resultSet;
+	}
+
+	private ResultSet prepareErrorResultSet(long id, List<MySQLPacket> packets, ResultSet resultSet) {
+		var packet = packets.get(0);
+		resultSet.setError(true);
+		resultSet.setErrorCode(Arrays.copyOfRange(packet.getBody(), 1, 3));
+		resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
+		resultSet.setErrorMessage(
+				(String) remoteFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED).decode(packet, 5).getLeft());
+		resultSet.setColumnCount(0);
+		resultSet.setResultSetComplete(true);
+		cleanUpAfterIngestingHeaders(id, 0);
+		awaitingRows.put(id, false);
 		return resultSet;
 	}
 
