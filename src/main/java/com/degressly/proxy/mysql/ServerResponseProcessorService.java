@@ -95,15 +95,46 @@ public class ServerResponseProcessorService {
 			log.info("Packet for row parsing: {}", packet);
 			if (Utils.isEOFPacket(packet)) {
 				cleanUpAfterIngestingRows(id);
+                break;
+			}
+
+			int byteOffset = 0, columnOffset = 0;
+			Map<Integer, String> row = new HashMap<>();
+            partialResult.getRowList().add(row);
+
+			while (byteOffset < packet.getBody().length) {
+
+                // Check if field is empty, denoted by 0xfb
+                // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_row.html
+                if (packet.getBody().length == 1 && ((packet.getBody()[0] & 0xff) == 0xfb)) {
+                    row.put(columnOffset, null);
+                    byteOffset++;
+                    columnOffset++;
+                    continue;
+                }
+
+                Pair<Object, Integer> decidedStringOffsetPair = remoteFieldDecoderFactory
+                        .get(Encoding.STRING_LENGTH_ENCODED)
+                        .decode(packet, byteOffset);
+
+                row.put(columnOffset, (String) decidedStringOffsetPair.getLeft());
+
+
+				byteOffset += decidedStringOffsetPair.getRight();
+				columnOffset++;
 			}
 
 		}
 
+        if (partialResults.containsKey(id)) {
+            partialResults.get(id).setPacketOffsetOfLastIngestedColumn(-1);
+        }
 		return partialResult;
 	}
 
 	private void cleanUpAfterIngestingRows(long taskId) {
 		awaitingRows.put(taskId, false);
+        awaitingHeaders.remove(taskId);
 		partialResults.get(taskId).setResultSetComplete(true);
 		partialResults.get(taskId).setPacketOffsetOfLastIngestedColumn(0);
 		partialResults.remove(taskId);
