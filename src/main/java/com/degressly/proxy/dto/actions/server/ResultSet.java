@@ -1,6 +1,7 @@
 package com.degressly.proxy.dto.actions.server;
 
 import lombok.Data;
+import org.springframework.lang.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,5 +19,13 @@ public class ResultSet {
 	private boolean resultSetComplete;
 
 	private int packetOffsetOfLastIngestedColumn = -1;
+
+	private boolean error;
+
+	@Nullable private byte[] errorCode;
+
+	@Nullable private byte[] jdbcState;
+
+	@Nullable private String errorMessage;
 
 }

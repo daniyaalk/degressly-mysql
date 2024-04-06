@@ -11,6 +11,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,9 +41,21 @@ public class ServerResponseProcessorService {
 			awaitingHeaders.putIfAbsent(id, true);
 			return partialResults.get(id);
 		}
-
 		var resultSet = new ResultSet();
 		partialResults.put(id, resultSet);
+
+		if (packets.size()==1 && Utils.isErrorPacket(packets.getFirst())) {
+			var packet = packets.get(0);
+			resultSet.setError(true);
+			resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 1, 3));
+			resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
+			resultSet.setErrorMessage((String) remoteFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED).decode(packet, 5).getLeft());
+			resultSet.setColumnCount(0);
+			resultSet.setResultSetComplete(true);
+			cleanUpAfterIngestingHeaders(id, 0);
+			return resultSet;
+		}
+
 		resultSet.setColumnCount(Utils.calculateIntLenEnc(packets.getFirst().getBody(), 0).getLeft());
 		return resultSet;
 	}
