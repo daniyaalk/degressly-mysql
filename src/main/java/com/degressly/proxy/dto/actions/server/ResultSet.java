@@ -12,4 +12,10 @@ public class ResultSet {
 
 	private List<Column> columnList = new ArrayList<>();
 
+	// private List<>
+
+	private boolean resultSetComplete;
+
+	private int packetOffsetOfLastIngestedColumn = 0;
+
 }

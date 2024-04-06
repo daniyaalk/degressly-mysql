@@ -9,7 +9,6 @@ public class Utils {
 
 	public static Pair<Integer, Integer> calculateIntLenEnc(byte[] bytes, int offset) {
 		int lsb = bytes[offset] & 0xff;
-		int value;
 
 		return switch (lsb) {
 			case 251 -> Pair.of(lsb + ((bytes[offset + 1] & 0xff) << 8), 2);

@@ -2,17 +2,12 @@ package com.degressly.proxy.mysql;
 
 import com.degressly.proxy.dto.actions.client.CommandCode;
 import com.degressly.proxy.dto.actions.client.MySQLClientAction;
-import com.degressly.proxy.dto.actions.server.Column;
 import com.degressly.proxy.dto.actions.server.ResultSet;
-import com.degressly.proxy.dto.actions.server.parser.Encoding;
-import com.degressly.proxy.dto.actions.server.parser.RemoteFieldDecoderFactory;
 import com.degressly.proxy.dto.packet.MySQLPacket;
-import com.degressly.proxy.utils.Utils;
 import io.netty.channel.Channel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -45,7 +40,7 @@ public class MySQLConnectionState {
 	MySQLPacketDecoder packetDecoder;
 
 	@Autowired
-	RemoteFieldDecoderFactory remoteFieldDecoderFactory;
+	ServerResponseProcessorService serverResponseProcessorService;
 
 	public MySQLConnectionState(long id) {
 		this.id = id;
@@ -60,6 +55,7 @@ public class MySQLConnectionState {
 			if (isAuthDone) {
 				MySQLClientAction action = convertToClientAction(packet);
 				if (CommandCode.COM_QUERY.equals(action.getCommandCode())) {
+					log.debug("awaiting response set to true");
 					awaitingResponse = true;
 				}
 				log.info("Client action: {}", action);
@@ -79,68 +75,26 @@ public class MySQLConnectionState {
 				isAuthDone = true;
 				log.info("Auth done");
 			}
-			else if (isAuthDone && awaitingResponse) {
-				if (Objects.isNull(partialResultSet)) {
-					processFirstPage(packets);
-					parseColumns(packets, 1);
-				}
-				else {
-					parseColumns(packets, 0);
-				}
-			}
-		}
-	}
-
-	private void cleanUpRemoteResultSet() {
-		partialResultSet = null;
-		awaitingResponse = false;
-	}
-
-	private void processFirstPage(List<MySQLPacket> packets) {
-		ResultSet resultSet = new ResultSet();
-		this.partialResultSet = resultSet;
-		resultSet.setColumnCount(packets.getFirst().getBody()[0]);
-	}
-
-	private void parseColumns(List<MySQLPacket> packets, int packetNumber) {
-		for (int i = packetNumber; i <= partialResultSet.getColumnCount(); i++) {
-			MySQLPacket packet = packets.get(i);
-
-			if (Utils.isEOFPacket(packet) || areAllColumnsDefined()) {
-				log.info("Processed columns: {}", partialResultSet);
-				cleanUpRemoteResultSet();
-				break;
-			}
-
-			var column = new Column();
-			Pair<Object, Integer> catalog = remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED)
-				.decode(packet, 0);
-			column.setCatalog((String) catalog.getLeft());
-			Pair<Object, Integer> schemaName = remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED)
-				.decode(packet, catalog.getRight());
-			column.setSchemaName((String) schemaName.getLeft());
-			Pair<Object, Integer> tableName = remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED)
-				.decode(packet, schemaName.getRight());
-			column.setTableName((String) tableName.getLeft());
-			Pair<Object, Integer> orgTableName = remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED)
-				.decode(packet, tableName.getRight());
-			column.setOrgColumnName((String) orgTableName.getLeft());
-			Pair<Object, Integer> columnName = remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED)
-				.decode(packet, orgTableName.getRight());
-			column.setColumnName((String) columnName.getLeft());
-			partialResultSet.getColumnList().add(column);
-
-			if (areAllColumnsDefined()) {
-				log.info("Processed columns: {}", partialResultSet);
-				cleanUpRemoteResultSet();
-				break;
-			}
 		}
 
-	}
+		if (isAuthDone && awaitingResponse) {
+			if (Objects.isNull(partialResultSet)) {
+				serverResponseProcessorService.processFirstPage(id, packets);
+				partialResultSet = serverResponseProcessorService.parseColumns(id, packets, 1);
+			}
+			else {
+				partialResultSet = serverResponseProcessorService.parseColumns(id, packets, 0);
+			}
 
-	private boolean areAllColumnsDefined() {
-		return partialResultSet.getColumnCount() == partialResultSet.getColumnList().size();
+			partialResultSet = serverResponseProcessorService.parseRows(id, packets);
+
+			log.info("{}", partialResultSet);
+
+			if (partialResultSet.isResultSetComplete()) {
+				partialResultSet = null;
+				awaitingResponse = false;
+			}
+		}
 	}
 
 	private MySQLClientAction convertToClientAction(MySQLPacket packet) {
