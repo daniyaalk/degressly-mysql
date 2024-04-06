@@ -19,6 +19,7 @@ public class IntLenEnc implements FieldDecoder, FieldEncoder {
 
 	@Override
 	public byte[] encode(String value) {
+
 		return new byte[0];
 	}
 
