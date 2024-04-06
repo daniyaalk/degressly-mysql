@@ -7,8 +7,6 @@ public interface FieldDecoder {
 
 	Pair<Object, Integer> decode(MySQLPacket packet, int offset);
 
-	byte[] encode(String value);
-
 	Encoding getEncoding();
 
 }

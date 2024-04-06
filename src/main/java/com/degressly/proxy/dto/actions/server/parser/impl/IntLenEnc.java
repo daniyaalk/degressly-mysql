@@ -4,35 +4,27 @@ import com.degressly.proxy.dto.actions.server.parser.Encoding;
 import com.degressly.proxy.dto.actions.server.parser.FieldDecoder;
 import com.degressly.proxy.dto.actions.server.parser.FieldEncoder;
 import com.degressly.proxy.dto.packet.MySQLPacket;
-import org.apache.commons.lang3.ArrayUtils;
+import com.degressly.proxy.utils.Utils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Component;
 
-import static com.degressly.proxy.dto.actions.server.parser.Encoding.STRING_NULL_TERMINATED;
-
 @Component
-public class StringNullTerminated implements FieldDecoder, FieldEncoder {
+public class IntLenEnc implements FieldDecoder, FieldEncoder {
 
 	@Override
 	public Pair<Object, Integer> decode(MySQLPacket packet, int offset) {
-		var sb = new StringBuffer();
-
-		while (offset < packet.getBody().length && ((packet.getBody()[offset] & 0xff) != 0x00)) {
-			sb.append((char) packet.getBody()[offset]);
-			offset++;
-		}
-
-		return Pair.of(sb.toString(), offset);
+		Pair<Integer, Integer> intLengthSizePair = Utils.calculateIntLenEnc(packet.getBody(), offset);
+		return Pair.of(intLengthSizePair.getLeft(), offset + intLengthSizePair.getRight());
 	}
 
 	@Override
 	public byte[] encode(String value) {
-		return ArrayUtils.addAll(value.getBytes(), (byte) 0x00);
+		return new byte[0];
 	}
 
 	@Override
 	public Encoding getEncoding() {
-		return STRING_NULL_TERMINATED;
+		return Encoding.INT_LENGTH_ENCODED;
 	}
 
 }

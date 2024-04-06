@@ -1,6 +1,7 @@
 package com.degressly.proxy.mysql;
 
 import com.degressly.proxy.dto.actions.server.Column;
+import com.degressly.proxy.dto.actions.server.FieldType;
 import com.degressly.proxy.dto.actions.server.ResultSet;
 import com.degressly.proxy.dto.actions.server.parser.Encoding;
 import com.degressly.proxy.dto.actions.server.parser.RemoteFieldDecoderFactory;
@@ -173,6 +174,25 @@ public class RemoteResponseProcessorService {
 		Pair<Object, Integer> columnName = remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED)
 			.decode(packet, orgTableName.getRight());
 		column.setColumnName((String) columnName.getLeft());
+		Pair<Object, Integer> orgColumnName = remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED)
+			.decode(packet, columnName.getRight());
+		column.setOrgColumnName((String) orgColumnName.getLeft());
+		Pair<Object, Integer> fixedFieldLength = remoteFieldDecoderFactory.get(Encoding.INT_LENGTH_ENCODED)
+			.decode(packet, orgColumnName.getRight());
+		column.setFixedFieldLength((int) fixedFieldLength.getLeft());
+		Pair<Object, Integer> characterSet = remoteFieldDecoderFactory.get(Encoding.INT_2)
+			.decode(packet, fixedFieldLength.getRight());
+		column.setCharSet((int) characterSet.getLeft());
+		Pair<Object, Integer> columnLength = remoteFieldDecoderFactory.get(Encoding.INT_4)
+			.decode(packet, characterSet.getRight());
+		column.setColumnLength((int) columnLength.getLeft());
+		Pair<Object, Integer> type = remoteFieldDecoderFactory.get(Encoding.INT_1)
+			.decode(packet, columnLength.getRight());
+		column.setType(FieldType.fromValue((int) type.getLeft()));
+		Pair<Object, Integer> flags = remoteFieldDecoderFactory.get(Encoding.INT_2).decode(packet, type.getRight());
+		column.setFlags((int) flags.getLeft());
+		Pair<Object, Integer> decimals = remoteFieldDecoderFactory.get(Encoding.INT_1).decode(packet, flags.getRight());
+		column.setFlags((int) decimals.getLeft());
 	}
 
 	private boolean areAllColumnsDefined(long id) {
