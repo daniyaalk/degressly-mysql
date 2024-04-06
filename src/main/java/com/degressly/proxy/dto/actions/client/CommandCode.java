@@ -5,8 +5,8 @@ import lombok.Getter;
 @Getter
 public enum CommandCode {
 
-	COM_SLEEP(0x00, null), COM_INIT_DB(0x02, null), COM_QUERY(0x03, String.class),
-	COM_FIELD_LIST(0x04, String.class), COM_QUIT(0x01, null)
+	COM_SLEEP(0x00, null), COM_INIT_DB(0x02, null), COM_QUERY(0x03, String.class), COM_FIELD_LIST(0x04, String.class),
+	COM_QUIT(0x01, null)
 
 	;
 

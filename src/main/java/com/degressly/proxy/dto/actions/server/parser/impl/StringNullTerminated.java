@@ -11,20 +11,21 @@ import static com.degressly.proxy.dto.actions.server.parser.Encoding.STRING_NULL
 @Component
 public class StringNullTerminated implements FieldDecoder {
 
-    @Override
-    public Pair<Object, Integer> decode(MySQLPacket packet, int offset) {
-        var sb = new StringBuffer();
+	@Override
+	public Pair<Object, Integer> decode(MySQLPacket packet, int offset) {
+		var sb = new StringBuffer();
 
-        while(offset < packet.getBody().length && ((packet.getBody()[offset] & 0xff) != 0x00)) {
-            sb.append(packet.getBody()[offset]);
-            offset++;
-        }
+		while (offset < packet.getBody().length && ((packet.getBody()[offset] & 0xff) != 0x00)) {
+			sb.append(packet.getBody()[offset]);
+			offset++;
+		}
 
-        return Pair.of(sb.toString(), 1);
-    }
+		return Pair.of(sb.toString(), 1);
+	}
 
-    @Override
-    public Encoding getEncoding() {
-        return STRING_NULL_TERMINATED;
-    }
+	@Override
+	public Encoding getEncoding() {
+		return STRING_NULL_TERMINATED;
+	}
+
 }

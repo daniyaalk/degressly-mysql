@@ -44,12 +44,14 @@ public class ServerResponseProcessorService {
 		var resultSet = new ResultSet();
 		partialResults.put(id, resultSet);
 
-		if (packets.size()==1 && Utils.isErrorPacket(packets.getFirst())) {
+		if (packets.size() == 1 && Utils.isErrorPacket(packets.getFirst())) {
 			var packet = packets.get(0);
 			resultSet.setError(true);
 			resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 1, 3));
 			resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
-			resultSet.setErrorMessage((String) remoteFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED).decode(packet, 5).getLeft());
+			resultSet.setErrorMessage((String) remoteFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED)
+				.decode(packet, 5)
+				.getLeft());
 			resultSet.setColumnCount(0);
 			resultSet.setResultSetComplete(true);
 			cleanUpAfterIngestingHeaders(id, 0);
@@ -108,30 +110,29 @@ public class ServerResponseProcessorService {
 			log.info("Packet for row parsing: {}", packet);
 			if (Utils.isEOFPacket(packet)) {
 				cleanUpAfterIngestingRows(id);
-                break;
+				break;
 			}
 
 			int byteOffset = 0, columnOffset = 0;
 			Map<Integer, String> row = new HashMap<>();
-            partialResult.getRowList().add(row);
+			partialResult.getRowList().add(row);
 
 			while (byteOffset < packet.getBody().length) {
 
-                // Check if field is empty, denoted by 0xfb
-                // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_row.html
-                if (packet.getBody().length == 1 && ((packet.getBody()[0] & 0xff) == 0xfb)) {
-                    row.put(columnOffset, null);
-                    byteOffset++;
-                    columnOffset++;
-                    continue;
-                }
+				// Check if field is empty, denoted by 0xfb
+				// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_row.html
+				if (packet.getBody().length == 1 && ((packet.getBody()[0] & 0xff) == 0xfb)) {
+					row.put(columnOffset, null);
+					byteOffset++;
+					columnOffset++;
+					continue;
+				}
 
-                Pair<Object, Integer> decidedStringOffsetPair = remoteFieldDecoderFactory
-                        .get(Encoding.STRING_LENGTH_ENCODED)
-                        .decode(packet, byteOffset);
+				Pair<Object, Integer> decidedStringOffsetPair = remoteFieldDecoderFactory
+					.get(Encoding.STRING_LENGTH_ENCODED)
+					.decode(packet, byteOffset);
 
-                row.put(columnOffset, (String) decidedStringOffsetPair.getLeft());
-
+				row.put(columnOffset, (String) decidedStringOffsetPair.getLeft());
 
 				byteOffset += decidedStringOffsetPair.getRight();
 				columnOffset++;
@@ -139,15 +140,15 @@ public class ServerResponseProcessorService {
 
 		}
 
-        if (partialResults.containsKey(id)) {
-            partialResults.get(id).setPacketOffsetOfLastIngestedColumn(-1);
-        }
+		if (partialResults.containsKey(id)) {
+			partialResults.get(id).setPacketOffsetOfLastIngestedColumn(-1);
+		}
 		return partialResult;
 	}
 
 	private void cleanUpAfterIngestingRows(long taskId) {
 		awaitingRows.put(taskId, false);
-        awaitingHeaders.remove(taskId);
+		awaitingHeaders.remove(taskId);
 		partialResults.get(taskId).setResultSetComplete(true);
 		partialResults.get(taskId).setPacketOffsetOfLastIngestedColumn(0);
 		partialResults.remove(taskId);

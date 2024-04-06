@@ -22,10 +22,13 @@ public class ResultSet {
 
 	private boolean error;
 
-	@Nullable private byte[] errorCode;
+	@Nullable
+	private byte[] errorCode;
 
-	@Nullable private byte[] jdbcState;
+	@Nullable
+	private byte[] jdbcState;
 
-	@Nullable private String errorMessage;
+	@Nullable
+	private String errorMessage;
 
 }
