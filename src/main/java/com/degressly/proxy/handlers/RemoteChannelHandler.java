@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.HexFormat;
 
 @Slf4j
@@ -44,11 +45,26 @@ public class RemoteChannelHandler extends ChannelInboundHandlerAdapter {
 		log.info("Remote channel input: {}", new String(byteArray));
 		log.info("Hex string: {}", hexChars);
 
-		mySQLConnectionState.processRemoteMessage(byteArray);
+		byte[] response = mySQLConnectionState.processRemoteMessage(byteArray);
 
-		ByteBuf send = ctx.alloc().buffer(byteArray.length);
-		send.writeBytes(byteArray);
-		mySQLConnectionState.getClientChannel().writeAndFlush(send);
+		sendResponse(ctx, response);
+	}
+
+	private void sendResponse(ChannelHandlerContext ctx, byte[] response) {
+		ByteBuf send = ctx.alloc().buffer();
+
+		int sendOffset = 0;
+
+		while (sendOffset < response.length) {
+			int maxMessage = send.maxCapacity();
+			int upperLimit = Math.min(response.length, maxMessage + sendOffset);
+
+			send.writeBytes(Arrays.copyOfRange(response, sendOffset, upperLimit));
+			mySQLConnectionState.getClientChannel().writeAndFlush(send);
+
+			sendOffset += upperLimit;
+		}
+
 	}
 
 }

@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 @Slf4j
 @Getter
@@ -66,7 +65,7 @@ public class MySQLConnectionState {
 
 	}
 
-	public Optional<Byte[]> processRemoteMessage(byte[] byteArray) {
+	public byte[] processRemoteMessage(byte[] byteArray) {
 		List<MySQLPacket> packets = packetDecoder.processMessage(byteArray, id);
 
 		for (var packet : packets) {
@@ -82,7 +81,7 @@ public class MySQLConnectionState {
 			loadPartialResultSet(packets);
 		}
 
-		return Optional.empty();
+		return byteArray;
 	}
 
 	private void loadPartialResultSet(List<MySQLPacket> packets) {
