@@ -7,6 +7,9 @@ import lombok.Data;
 @Data
 @Builder
 public class PreparedStatementDto {
-    private final ServerResponse serverResponse;
-    private final MySQLClientAction lastClientAction;
+
+	private final ServerResponse serverResponse;
+
+	private final MySQLClientAction lastClientAction;
+
 }

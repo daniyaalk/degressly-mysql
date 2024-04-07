@@ -58,10 +58,9 @@ public class MySQLConnectionState {
 			if (isAuthDone) {
 				MySQLClientAction action = convertToClientAction(packet);
 				log.debug("MySQL Client action received: {}", action);
-				if (CommandCode.COM_QUERY.equals(action.getCommandCode()) ||
-						CommandCode.COM_PREPARE.equals(action.getCommandCode()) ||
-						CommandCode.COM_EXECUTE.equals(action.getCommandCode())
-				) {
+				if (CommandCode.COM_QUERY.equals(action.getCommandCode())
+						|| CommandCode.COM_PREPARE.equals(action.getCommandCode())
+						|| CommandCode.COM_EXECUTE.equals(action.getCommandCode())) {
 					log.debug("awaiting response set to true");
 					awaitingResponseResultSet = true;
 				}
@@ -94,7 +93,7 @@ public class MySQLConnectionState {
 
 	private void loadPartialResultSet(List<MySQLPacket> packets) {
 
-		switch(lastClientAction.getCommandCode()) {
+		switch (lastClientAction.getCommandCode()) {
 			case COM_QUERY, COM_EXECUTE -> loadPartialResultSetForCOM_QUERY(packets);
 			case COM_PREPARE -> loadPartialResultSetForCOM_PREPARE(packets);
 		}
@@ -113,10 +112,11 @@ public class MySQLConnectionState {
 	}
 
 	private void storePreparedStatement(ServerResponse partialServerResponse) {
-		preparedStatements.put(
-				partialServerResponse.getStatementId(),
-				PreparedStatementDto.builder().serverResponse(partialServerResponse).lastClientAction(lastClientAction).build()
-		);
+		preparedStatements.put(partialServerResponse.getStatementId(),
+				PreparedStatementDto.builder()
+					.serverResponse(partialServerResponse)
+					.lastClientAction(lastClientAction)
+					.build());
 	}
 
 	private void loadPartialResultSetForCOM_QUERY(List<MySQLPacket> packets) {
@@ -150,7 +150,8 @@ public class MySQLConnectionState {
 
 	private Object getClientArgument(MySQLPacket packet, CommandCode commandCode) {
 		return switch (commandCode) {
-			case COM_INIT_DB, COM_QUERY, COM_PREPARE -> new String(Arrays.copyOfRange(packet.getBody(), 1, packet.getBody().length));
+			case COM_INIT_DB, COM_QUERY, COM_PREPARE ->
+				new String(Arrays.copyOfRange(packet.getBody(), 1, packet.getBody().length));
 			default -> null;
 		};
 	}
