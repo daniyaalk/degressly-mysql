@@ -81,6 +81,15 @@ public class RemoteResponseProcessorService {
 		return resultSet;
 	}
 
+	public ResultSet processResponseForCOM_PREPARE(long id, List<MySQLPacket> packets) {
+		ResultSet resultSet = new ResultSet();
+		resultSet.setColumnCount(0);
+		resultSet.setResultSetComplete(true);
+		resultSet.setPacketOffsetOfLastIngestedColumn(0);
+		resultSet.setOkPacket(true);
+		return resultSet;
+	}
+
 	public ResultSet parseColumns(long id, List<MySQLPacket> packets, int packetNumber) {
 		if (!awaitingHeaders.getOrDefault(id, true)) {
 			return partialResults.get(id);

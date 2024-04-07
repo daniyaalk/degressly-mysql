@@ -34,8 +34,9 @@ public class Utils {
 	}
 
 	public static boolean isOKPacket(MySQLPacket packet) {
-		// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html
-		return ((packet.getBody()[0] & 0xff) == 0x00) || ((packet.getBody()[0] & 0xff) == 0xfe);
+		https: // dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_ok_packet.html
+		return packet.getBody().length > 7 && ((packet.getBody()[0] & 0xff) == 0x00)
+				|| ((packet.getBody()[0] & 0xff) == 0xfe);
 	}
 
 }

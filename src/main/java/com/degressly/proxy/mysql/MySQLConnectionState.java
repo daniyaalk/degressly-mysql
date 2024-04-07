@@ -26,6 +26,8 @@ public class MySQLConnectionState {
 
 	private boolean isAuthDone;
 
+	private MySQLClientAction lastUserAction;
+
 	private boolean awaitingResponseResultSet;
 
 	private ResultSet partialResultSet = null;
@@ -54,10 +56,15 @@ public class MySQLConnectionState {
 
 			if (isAuthDone) {
 				MySQLClientAction action = convertToClientAction(packet);
-				if (CommandCode.COM_QUERY.equals(action.getCommandCode())) {
+				log.debug("MySQL Client action received: {}", action);
+				if (CommandCode.COM_QUERY.equals(action.getCommandCode()) ||
+						CommandCode.COM_PREPARE.equals(action.getCommandCode()) ||
+						CommandCode.COM_EXECUTE.equals(action.getCommandCode())
+				) {
 					log.debug("awaiting response set to true");
 					awaitingResponseResultSet = true;
 				}
+				lastUserAction = action;
 				log.info("Client action: {}", action);
 			}
 
@@ -85,6 +92,24 @@ public class MySQLConnectionState {
 	}
 
 	private void loadPartialResultSet(List<MySQLPacket> packets) {
+
+		switch(lastUserAction.getCommandCode()) {
+			case COM_QUERY, COM_EXECUTE -> loadPartialResultSetForCOM_QUERY(packets);
+			case COM_PREPARE -> loadPartialResultSetForCOM_PREPARE(packets);
+		}
+	}
+
+	private void loadPartialResultSetForCOM_PREPARE(List<MySQLPacket> packets) {
+		partialResultSet = remoteResponseProcessorService.processResponseForCOM_PREPARE(id, packets);
+		log.info("{}", partialResultSet);
+
+		if (partialResultSet.isResultSetComplete()) {
+			partialResultSet = null;
+			awaitingResponseResultSet = false;
+		}
+	}
+
+	private void loadPartialResultSetForCOM_QUERY(List<MySQLPacket> packets) {
 		if (Objects.isNull(partialResultSet)) {
 			// First packet contains
 			remoteResponseProcessorService.processFirstPage(id, packets);
