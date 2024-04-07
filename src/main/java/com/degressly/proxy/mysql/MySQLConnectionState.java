@@ -2,7 +2,8 @@ package com.degressly.proxy.mysql;
 
 import com.degressly.proxy.dto.actions.client.CommandCode;
 import com.degressly.proxy.dto.actions.client.MySQLClientAction;
-import com.degressly.proxy.dto.actions.server.ResultSet;
+import com.degressly.proxy.dto.actions.server.PreparedStatementDto;
+import com.degressly.proxy.dto.actions.server.ServerResponse;
 import com.degressly.proxy.dto.packet.MySQLPacket;
 import io.netty.channel.Channel;
 import lombok.Getter;
@@ -12,9 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Slf4j
 @Getter
@@ -26,11 +25,13 @@ public class MySQLConnectionState {
 
 	private boolean isAuthDone;
 
-	private MySQLClientAction lastUserAction;
+	private MySQLClientAction lastClientAction;
 
 	private boolean awaitingResponseResultSet;
 
-	private ResultSet partialResultSet = null;
+	private ServerResponse partialServerResponse = null;
+
+	Map<Integer, PreparedStatementDto> preparedStatements = new HashMap<>();
 
 	@Setter
 	private Channel clientChannel;
@@ -64,7 +65,7 @@ public class MySQLConnectionState {
 					log.debug("awaiting response set to true");
 					awaitingResponseResultSet = true;
 				}
-				lastUserAction = action;
+				lastClientAction = action;
 				log.info("Client action: {}", action);
 			}
 
@@ -93,38 +94,47 @@ public class MySQLConnectionState {
 
 	private void loadPartialResultSet(List<MySQLPacket> packets) {
 
-		switch(lastUserAction.getCommandCode()) {
+		switch(lastClientAction.getCommandCode()) {
 			case COM_QUERY, COM_EXECUTE -> loadPartialResultSetForCOM_QUERY(packets);
 			case COM_PREPARE -> loadPartialResultSetForCOM_PREPARE(packets);
 		}
 	}
 
 	private void loadPartialResultSetForCOM_PREPARE(List<MySQLPacket> packets) {
-		partialResultSet = remoteResponseProcessorService.processResponseForCOM_PREPARE(id, packets);
-		log.info("{}", partialResultSet);
+		partialServerResponse = remoteResponseProcessorService.processResponseForCOM_PREPARE(id, packets);
+		log.info("{}", partialServerResponse);
 
-		if (partialResultSet.isResultSetComplete()) {
-			partialResultSet = null;
+		if (partialServerResponse.isResponseComplete()) {
+			storePreparedStatement(partialServerResponse);
+
+			partialServerResponse = null;
 			awaitingResponseResultSet = false;
 		}
 	}
 
+	private void storePreparedStatement(ServerResponse partialServerResponse) {
+		preparedStatements.put(
+				partialServerResponse.getStatementId(),
+				PreparedStatementDto.builder().serverResponse(partialServerResponse).lastClientAction(lastClientAction).build()
+		);
+	}
+
 	private void loadPartialResultSetForCOM_QUERY(List<MySQLPacket> packets) {
-		if (Objects.isNull(partialResultSet)) {
+		if (Objects.isNull(partialServerResponse)) {
 			// First packet contains
 			remoteResponseProcessorService.processFirstPage(id, packets);
-			partialResultSet = remoteResponseProcessorService.parseColumns(id, packets, 1);
+			partialServerResponse = remoteResponseProcessorService.parseColumnsForCOM_QUERY(id, packets, 1);
 		}
 		else {
-			partialResultSet = remoteResponseProcessorService.parseColumns(id, packets, 0);
+			partialServerResponse = remoteResponseProcessorService.parseColumnsForCOM_QUERY(id, packets, 0);
 		}
 
-		partialResultSet = remoteResponseProcessorService.parseRows(id, packets);
+		partialServerResponse = remoteResponseProcessorService.parseRowsForCOM_QUERY(id, packets);
 
-		log.info("{}", partialResultSet);
+		log.info("{}", partialServerResponse);
 
-		if (partialResultSet.isResultSetComplete()) {
-			partialResultSet = null;
+		if (partialServerResponse.isResponseComplete()) {
+			partialServerResponse = null;
 			awaitingResponseResultSet = false;
 		}
 	}
@@ -140,7 +150,7 @@ public class MySQLConnectionState {
 
 	private Object getClientArgument(MySQLPacket packet, CommandCode commandCode) {
 		return switch (commandCode) {
-			case COM_INIT_DB, COM_QUERY -> new String(Arrays.copyOfRange(packet.getBody(), 1, packet.getBody().length));
+			case COM_INIT_DB, COM_QUERY, COM_PREPARE -> new String(Arrays.copyOfRange(packet.getBody(), 1, packet.getBody().length));
 			default -> null;
 		};
 	}

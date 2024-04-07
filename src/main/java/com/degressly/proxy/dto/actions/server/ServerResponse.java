@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-public class ResultSet {
+public class ServerResponse {
 
 	private int columnCount;
 
@@ -21,13 +21,17 @@ public class ResultSet {
 
 	private List<Map<Integer, String>> rowList = new ArrayList<>();
 
-	private boolean resultSetComplete;
+	private boolean responseComplete;
 
 	private int packetOffsetOfLastIngestedColumn = -1;
 
 	private boolean error;
 
 	private boolean isOkPacket;
+
+	private int statementId;
+
+	private int numParams;
 
 	@Nullable
 	private byte[] errorCode;

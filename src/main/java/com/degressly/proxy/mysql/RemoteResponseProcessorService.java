@@ -1,7 +1,7 @@
 package com.degressly.proxy.mysql;
 
 import com.degressly.proxy.dto.actions.server.Column;
-import com.degressly.proxy.dto.actions.server.ResultSet;
+import com.degressly.proxy.dto.actions.server.ServerResponse;
 import com.degressly.proxy.dto.actions.server.parser.Encoding;
 import com.degressly.proxy.dto.actions.server.parser.RemoteFieldDecoderFactory;
 import com.degressly.proxy.dto.packet.MySQLPacket;
@@ -19,7 +19,7 @@ import java.util.Map;
 @Service
 public class RemoteResponseProcessorService {
 
-	public static final Map<Long, ResultSet> partialResults = new HashMap<>();
+	public static final Map<Long, ServerResponse> partialResults = new HashMap<>();
 
 	public static final Map<Long, Boolean> awaitingHeaders = new HashMap<>();
 
@@ -35,12 +35,12 @@ public class RemoteResponseProcessorService {
 		// partialResults.remove(taskId);
 	}
 
-	public ResultSet processFirstPage(long id, List<MySQLPacket> packets) {
+	public ServerResponse processFirstPage(long id, List<MySQLPacket> packets) {
 		if (!awaitingHeaders.getOrDefault(id, true)) {
 			awaitingHeaders.putIfAbsent(id, true);
 			return partialResults.get(id);
 		}
-		var resultSet = new ResultSet();
+		var resultSet = new ServerResponse();
 		partialResults.put(id, resultSet);
 
 		if (packets.size() == 1 && Utils.isOKPacket(packets.getFirst())) {
@@ -55,42 +55,45 @@ public class RemoteResponseProcessorService {
 		return resultSet;
 	}
 
-	private ResultSet prepareOKResultSet(long id, List<MySQLPacket> packets, ResultSet resultSet) {
-		resultSet.setOkPacket(true);
+	private ServerResponse prepareOKResultSet(long id, List<MySQLPacket> packets, ServerResponse serverResponse) {
+		serverResponse.setOkPacket(true);
 		var packet = packets.getFirst();
-		resultSet.setStatusMessage(
+		serverResponse.setStatusMessage(
 				(String) remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED).decode(packet, 5).getLeft());
-		resultSet.setColumnCount(0);
-		resultSet.setResultSetComplete(true);
+		serverResponse.setColumnCount(0);
+		serverResponse.setResponseComplete(true);
 		cleanUpAfterIngestingHeaders(id, 0);
 		awaitingRows.put(id, false);
-		return resultSet;
+		return serverResponse;
 	}
 
-	private ResultSet prepareErrorResultSet(long id, List<MySQLPacket> packets, ResultSet resultSet) {
+	private ServerResponse prepareErrorResultSet(long id, List<MySQLPacket> packets, ServerResponse serverResponse) {
 		var packet = packets.getFirst();
-		resultSet.setError(true);
-		resultSet.setErrorCode(Arrays.copyOfRange(packet.getBody(), 1, 3));
-		resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
-		resultSet.setErrorMessage(
+		serverResponse.setError(true);
+		serverResponse.setErrorCode(Arrays.copyOfRange(packet.getBody(), 1, 3));
+		serverResponse.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
+		serverResponse.setErrorMessage(
 				(String) remoteFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED).decode(packet, 5).getLeft());
-		resultSet.setColumnCount(0);
-		resultSet.setResultSetComplete(true);
+		serverResponse.setColumnCount(0);
+		serverResponse.setResponseComplete(true);
 		cleanUpAfterIngestingHeaders(id, 0);
 		awaitingRows.put(id, false);
-		return resultSet;
+		return serverResponse;
 	}
 
-	public ResultSet processResponseForCOM_PREPARE(long id, List<MySQLPacket> packets) {
-		ResultSet resultSet = new ResultSet();
-		resultSet.setColumnCount(0);
-		resultSet.setResultSetComplete(true);
-		resultSet.setPacketOffsetOfLastIngestedColumn(0);
-		resultSet.setOkPacket(true);
-		return resultSet;
+	public ServerResponse processResponseForCOM_PREPARE(long id, List<MySQLPacket> packets) {
+		var packet = packets.getFirst();
+		ServerResponse serverResponse = new ServerResponse();
+
+		serverResponse.setStatementId((int) remoteFieldDecoderFactory.get(Encoding.INT_4).decode(packet, 1).getLeft());
+		serverResponse.setColumnCount((int) remoteFieldDecoderFactory.get(Encoding.INT_2).decode(packet, 5).getLeft());
+		serverResponse.setResponseComplete(true);
+		serverResponse.setPacketOffsetOfLastIngestedColumn(0);
+		serverResponse.setOkPacket(true);
+		return serverResponse;
 	}
 
-	public ResultSet parseColumns(long id, List<MySQLPacket> packets, int packetNumber) {
+	public ServerResponse parseColumnsForCOM_QUERY(long id, List<MySQLPacket> packets, int packetNumber) {
 		if (!awaitingHeaders.getOrDefault(id, true)) {
 			return partialResults.get(id);
 		}
@@ -104,7 +107,7 @@ public class RemoteResponseProcessorService {
 
 			if (areAllColumnsDefined(id)) {
 				log.info("Processed columns: {}", partialResultSet);
-				partialResultSet.setResultSetComplete(true);
+				partialResultSet.setResponseComplete(true);
 				cleanUpAfterIngestingHeaders(id, i);
 				break;
 			}
@@ -112,7 +115,7 @@ public class RemoteResponseProcessorService {
 		return partialResultSet;
 	}
 
-	public ResultSet parseRows(long id, List<MySQLPacket> packets) {
+	public ServerResponse parseRowsForCOM_QUERY(long id, List<MySQLPacket> packets) {
 		var partialResult = partialResults.get(id);
 
 		if (!awaitingRows.getOrDefault(id, false)) {
@@ -127,7 +130,7 @@ public class RemoteResponseProcessorService {
 				break;
 			}
 
-			partialResult.getRowList().add(ResultSet.getRowFromPacket(packet, remoteFieldDecoderFactory));
+			partialResult.getRowList().add(ServerResponse.getRowFromPacket(packet, remoteFieldDecoderFactory));
 
 		}
 
@@ -140,7 +143,7 @@ public class RemoteResponseProcessorService {
 	private void cleanUpAfterIngestingRows(long taskId) {
 		awaitingRows.put(taskId, false);
 		awaitingHeaders.remove(taskId);
-		partialResults.get(taskId).setResultSetComplete(true);
+		partialResults.get(taskId).setResponseComplete(true);
 		partialResults.get(taskId).setPacketOffsetOfLastIngestedColumn(0);
 		partialResults.remove(taskId);
 	}
