@@ -2,8 +2,8 @@ package com.degressly.proxy.mysql;
 
 import com.degressly.proxy.dto.actions.server.Column;
 import com.degressly.proxy.dto.actions.server.ServerResponse;
-import com.degressly.proxy.dto.actions.server.parser.Encoding;
-import com.degressly.proxy.dto.actions.server.parser.RemoteFieldDecoderFactory;
+import com.degressly.proxy.constants.Encoding;
+import com.degressly.proxy.mysql.parser.RemoteTextFieldDecoderFactory;
 import com.degressly.proxy.dto.packet.MySQLPacket;
 import com.degressly.proxy.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,7 @@ public class RemoteResponseProcessorService {
 	public static final Map<Long, Boolean> awaitingRows = new HashMap<>();
 
 	@Autowired
-	RemoteFieldDecoderFactory remoteFieldDecoderFactory;
+	RemoteTextFieldDecoderFactory remoteTextFieldDecoderFactory;
 
 	private void cleanUpAfterIngestingHeaders(long taskId, int lastColumnPacket) {
 		awaitingHeaders.put(taskId, false);
@@ -59,7 +59,7 @@ public class RemoteResponseProcessorService {
 		serverResponse.setOkPacket(true);
 		var packet = packets.getFirst();
 		serverResponse.setStatusMessage(
-				(String) remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED).decode(packet, 5).getLeft());
+				(String) remoteTextFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED).decode(packet, 5).getLeft());
 		serverResponse.setColumnCount(0);
 		serverResponse.setResponseComplete(true);
 		cleanUpAfterIngestingHeaders(id, 0);
@@ -73,7 +73,7 @@ public class RemoteResponseProcessorService {
 		serverResponse.setErrorCode(Arrays.copyOfRange(packet.getBody(), 1, 3));
 		serverResponse.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
 		serverResponse.setErrorMessage(
-				(String) remoteFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED).decode(packet, 5).getLeft());
+				(String) remoteTextFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED).decode(packet, 5).getLeft());
 		serverResponse.setColumnCount(0);
 		serverResponse.setResponseComplete(true);
 		cleanUpAfterIngestingHeaders(id, 0);
@@ -85,15 +85,17 @@ public class RemoteResponseProcessorService {
 		var packet = packets.getFirst();
 		ServerResponse serverResponse = new ServerResponse();
 
-		serverResponse.setStatementId((int) remoteFieldDecoderFactory.get(Encoding.INT_4).decode(packet, 1).getLeft());
-		serverResponse.setColumnCount((int) remoteFieldDecoderFactory.get(Encoding.INT_2).decode(packet, 5).getLeft());
+		serverResponse.setStatementId((int) remoteTextFieldDecoderFactory.get(Encoding.INT_4).decode(packet, 1).getLeft());
+		serverResponse.setColumnCount((int) remoteTextFieldDecoderFactory.get(Encoding.INT_2).decode(packet, 5).getLeft());
 		serverResponse.setResponseComplete(true);
-		serverResponse.setPacketOffsetOfLastIngestedColumn(0);
+//		serverResponse.setPacketOffsetOfLastIngestedColumn(0);
 		serverResponse.setOkPacket(true);
+
+		awaitingHeaders.remove(id);
 		return serverResponse;
 	}
 
-	public ServerResponse parseColumnsForCOM_QUERY(long id, List<MySQLPacket> packets, int packetNumber) {
+	public ServerResponse parseColumnsForResultSet(long id, List<MySQLPacket> packets, int packetNumber) {
 		if (!awaitingHeaders.getOrDefault(id, true)) {
 			return partialResults.get(id);
 		}
@@ -102,7 +104,7 @@ public class RemoteResponseProcessorService {
 		for (int i = packetNumber; i < packets.size(); i++) {
 			MySQLPacket packet = packets.get(i);
 
-			Column column = Column.getColumnFromPacket(packet, remoteFieldDecoderFactory);
+			Column column = Column.getColumnFromPacket(packet, remoteTextFieldDecoderFactory);
 			partialResultSet.getColumnList().add(column);
 
 			if (areAllColumnsDefined(id)) {
@@ -130,7 +132,32 @@ public class RemoteResponseProcessorService {
 				break;
 			}
 
-			partialResult.getRowList().add(ServerResponse.getRowFromPacket(packet, remoteFieldDecoderFactory));
+			partialResult.getRowList().add(ServerResponse.getRowFromTextResultSetInPacket(packet, remoteTextFieldDecoderFactory));
+
+		}
+
+		if (partialResults.containsKey(id)) {
+			partialResults.get(id).setPacketOffsetOfLastIngestedColumn(-1);
+		}
+		return partialResult;
+	}
+
+	public ServerResponse parseRowsForCOM_EXECUTE(long id, List<MySQLPacket> packets) {
+		var partialResult = partialResults.get(id);
+
+		if (!awaitingRows.getOrDefault(id, false)) {
+			return partialResult;
+		}
+
+		for (int i = partialResult.getPacketOffsetOfLastIngestedColumn() + 1; i < packets.size(); i++) {
+			var packet = packets.get(i);
+			log.info("Packet for row parsing: {}", packet);
+			if (Utils.isEOFPacket(packet)) {
+				cleanUpAfterIngestingRows(id);
+				break;
+			}
+
+			partialResult.getRowList().add(ServerResponse.getRowFromBinaryResultSetInPacket(packet, remoteTextFieldDecoderFactory));
 
 		}
 

@@ -1,4 +1,4 @@
-package com.degressly.proxy.dto.actions.client;
+package com.degressly.proxy.constants;
 
 import lombok.Getter;
 

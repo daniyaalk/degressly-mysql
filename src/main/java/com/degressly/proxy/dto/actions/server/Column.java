@@ -1,7 +1,7 @@
 package com.degressly.proxy.dto.actions.server;
 
-import com.degressly.proxy.dto.actions.server.parser.Encoding;
-import com.degressly.proxy.dto.actions.server.parser.RemoteFieldDecoderFactory;
+import com.degressly.proxy.constants.Encoding;
+import com.degressly.proxy.mysql.parser.RemoteTextFieldDecoderFactory;
 import com.degressly.proxy.dto.packet.MySQLPacket;
 import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
@@ -27,13 +27,13 @@ public class Column {
 
 	private int columnLength;
 
-	private FieldType type;
+	private TextFieldType textFieldType;
 
 	private int flags;
 
 	private int decimals;
 
-	public static Column getColumnFromPacket(MySQLPacket packet, RemoteFieldDecoderFactory factory) {
+	public static Column getColumnFromPacket(MySQLPacket packet, RemoteTextFieldDecoderFactory factory) {
 		var column = new Column();
 		Pair<Object, Integer> catalog = factory.get(Encoding.STRING_LENGTH_ENCODED).decode(packet, 0);
 		column.setCatalog((String) catalog.getLeft());
@@ -60,7 +60,7 @@ public class Column {
 		Pair<Object, Integer> columnLength = factory.get(Encoding.INT_4).decode(packet, characterSet.getRight());
 		column.setColumnLength((int) columnLength.getLeft());
 		Pair<Object, Integer> type = factory.get(Encoding.INT_1).decode(packet, columnLength.getRight());
-		column.setType(FieldType.fromValue((int) type.getLeft()));
+		column.setTextFieldType(TextFieldType.fromValue((int) type.getLeft()));
 		Pair<Object, Integer> flags = factory.get(Encoding.INT_2).decode(packet, type.getRight());
 		column.setFlags((int) flags.getLeft());
 		Pair<Object, Integer> decimals = factory.get(Encoding.INT_1).decode(packet, flags.getRight());

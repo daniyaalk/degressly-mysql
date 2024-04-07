@@ -1,6 +1,6 @@
 package com.degressly.proxy.mysql;
 
-import com.degressly.proxy.dto.actions.client.CommandCode;
+import com.degressly.proxy.constants.CommandCode;
 import com.degressly.proxy.dto.actions.client.MySQLClientAction;
 import com.degressly.proxy.dto.actions.server.PreparedStatementDto;
 import com.degressly.proxy.dto.actions.server.ServerResponse;
@@ -123,10 +123,30 @@ public class MySQLConnectionState {
 		if (Objects.isNull(partialServerResponse)) {
 			// First packet contains
 			remoteResponseProcessorService.processFirstPage(id, packets);
-			partialServerResponse = remoteResponseProcessorService.parseColumnsForCOM_QUERY(id, packets, 1);
+			partialServerResponse = remoteResponseProcessorService.parseColumnsForResultSet(id, packets, 1);
 		}
 		else {
-			partialServerResponse = remoteResponseProcessorService.parseColumnsForCOM_QUERY(id, packets, 0);
+			partialServerResponse = remoteResponseProcessorService.parseColumnsForResultSet(id, packets, 0);
+		}
+
+		partialServerResponse = remoteResponseProcessorService.parseRowsForCOM_QUERY(id, packets);
+
+		log.info("{}", partialServerResponse);
+
+		if (partialServerResponse.isResponseComplete()) {
+			partialServerResponse = null;
+			awaitingResponseResultSet = false;
+		}
+	}
+
+	private void loadPartialResultSetForCOM_EXECUTE(List<MySQLPacket> packets) {
+		if (Objects.isNull(partialServerResponse)) {
+			// First packet contains
+			remoteResponseProcessorService.processFirstPage(id, packets);
+			partialServerResponse = remoteResponseProcessorService.parseColumnsForResultSet(id, packets, 1);
+		}
+		else {
+			partialServerResponse = remoteResponseProcessorService.parseColumnsForResultSet(id, packets, 0);
 		}
 
 		partialServerResponse = remoteResponseProcessorService.parseRowsForCOM_QUERY(id, packets);

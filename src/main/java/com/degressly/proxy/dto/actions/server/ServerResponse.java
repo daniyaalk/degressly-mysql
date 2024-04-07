@@ -1,7 +1,7 @@
 package com.degressly.proxy.dto.actions.server;
 
-import com.degressly.proxy.dto.actions.server.parser.Encoding;
-import com.degressly.proxy.dto.actions.server.parser.RemoteFieldDecoderFactory;
+import com.degressly.proxy.constants.Encoding;
+import com.degressly.proxy.mysql.parser.RemoteTextFieldDecoderFactory;
 import com.degressly.proxy.dto.packet.MySQLPacket;
 import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
@@ -45,8 +45,8 @@ public class ServerResponse {
 	@Nullable
 	String statusMessage;
 
-	public static Map<Integer, String> getRowFromPacket(MySQLPacket packet,
-			RemoteFieldDecoderFactory remoteFieldDecoderFactory) {
+	public static Map<Integer, String> getRowFromTextResultSetInPacket(MySQLPacket packet,
+																	   RemoteTextFieldDecoderFactory remoteTextFieldDecoderFactory) {
 		Map<Integer, String> row = new HashMap<>();
 
 		int byteOffset = 0, columnOffset = 0;
@@ -62,7 +62,7 @@ public class ServerResponse {
 				continue;
 			}
 
-			Pair<Object, Integer> decidedStringOffsetPair = remoteFieldDecoderFactory
+			Pair<Object, Integer> decidedStringOffsetPair = remoteTextFieldDecoderFactory
 				.get(Encoding.STRING_LENGTH_ENCODED)
 				.decode(packet, byteOffset);
 
@@ -71,6 +71,14 @@ public class ServerResponse {
 			byteOffset += decidedStringOffsetPair.getRight();
 			columnOffset++;
 		}
+		return row;
+	}
+
+	public static Map<Integer, String> getRowFromBinaryResultSetInPacket(MySQLPacket packet,
+																	   RemoteTextFieldDecoderFactory remoteTextFieldDecoderFactory) {
+		Map<Integer, String> row = new HashMap<>();
+
+
 		return row;
 	}
 

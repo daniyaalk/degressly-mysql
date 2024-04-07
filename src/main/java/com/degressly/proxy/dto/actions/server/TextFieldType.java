@@ -3,7 +3,7 @@ package com.degressly.proxy.dto.actions.server;
 import lombok.Getter;
 
 @Getter
-public enum FieldType {
+public enum TextFieldType {
 
 	MYSQL_TYPE_DECIMAL(0), MYSQL_TYPE_TINY(1), MYSQL_TYPE_SHORT(2), MYSQL_TYPE_LONG(3), MYSQL_TYPE_FLOAT(4),
 	MYSQL_TYPE_DOUBLE(5), MYSQL_TYPE_NULL(6), MYSQL_TYPE_TIMESTAMP(7), MYSQL_TYPE_LONGLONG(8), MYSQL_TYPE_INT24(9),
@@ -16,11 +16,11 @@ public enum FieldType {
 
 	private final int value;
 
-	FieldType(int value) {
+	TextFieldType(int value) {
 		this.value = value;
 	}
 
-	public static FieldType fromValue(int value) {
+	public static TextFieldType fromValue(int value) {
 		for (var val : values()) {
 			if (value == val.value) {
 				return val;

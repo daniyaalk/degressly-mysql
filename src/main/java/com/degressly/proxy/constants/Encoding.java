@@ -1,4 +1,4 @@
-package com.degressly.proxy.dto.actions.server.parser;
+package com.degressly.proxy.constants;
 
 public enum Encoding {
 

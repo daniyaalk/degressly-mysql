@@ -1,5 +1,6 @@
-package com.degressly.proxy.dto.actions.server.parser;
+package com.degressly.proxy.mysql.parser;
 
+import com.degressly.proxy.constants.Encoding;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -10,21 +11,21 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class RemoteFieldDecoderFactory {
+public class RemoteTextFieldDecoderFactory {
 
 	@Autowired
-	private List<FieldDecoder> decoders;
+	private List<TextFieldDecoder> decoders;
 
-	private Map<Encoding, FieldDecoder> decoderMap;
+	private Map<Encoding, TextFieldDecoder> decoderMap;
 
 	@PostConstruct
 	public void init() {
-		Map<Encoding, FieldDecoder> map = new HashMap<>();
+		Map<Encoding, TextFieldDecoder> map = new HashMap<>();
 		decoders.forEach((decoder) -> map.put(decoder.getEncoding(), decoder));
 		decoderMap = Collections.unmodifiableMap(map);
 	}
 
-	public FieldDecoder get(Encoding encoding) {
+	public TextFieldDecoder get(Encoding encoding) {
 		return decoderMap.get(encoding);
 	}
 

@@ -1,4 +1,6 @@
-package com.degressly.proxy.dto.actions.server.parser;
+package com.degressly.proxy.mysql.parser;
+
+import com.degressly.proxy.constants.Encoding;
 
 public interface FieldEncoder {
 
