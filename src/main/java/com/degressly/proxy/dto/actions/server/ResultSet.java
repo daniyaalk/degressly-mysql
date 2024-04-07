@@ -27,6 +27,8 @@ public class ResultSet {
 
 	private boolean error;
 
+	private boolean isOkPacket;
+
 	@Nullable
 	private byte[] errorCode;
 
@@ -35,6 +37,9 @@ public class ResultSet {
 
 	@Nullable
 	private String errorMessage;
+
+	@Nullable
+	String statusMessage;
 
 	public static Map<Integer, String> getRowFromPacket(MySQLPacket packet,
 			RemoteFieldDecoderFactory remoteFieldDecoderFactory) {

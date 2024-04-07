@@ -43,6 +43,10 @@ public class RemoteResponseProcessorService {
 		var resultSet = new ResultSet();
 		partialResults.put(id, resultSet);
 
+		if (packets.size() == 1 && Utils.isOKPacket(packets.getFirst())) {
+			return prepareOKResultSet(id, packets, resultSet);
+		}
+
 		if (packets.size() == 1 && Utils.isErrorPacket(packets.getFirst())) {
 			return prepareErrorResultSet(id, packets, resultSet);
 		}
@@ -51,8 +55,20 @@ public class RemoteResponseProcessorService {
 		return resultSet;
 	}
 
+	private ResultSet prepareOKResultSet(long id, List<MySQLPacket> packets, ResultSet resultSet) {
+		resultSet.setOkPacket(true);
+		var packet = packets.getFirst();
+		resultSet.setStatusMessage(
+				(String) remoteFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED).decode(packet, 5).getLeft());
+		resultSet.setColumnCount(0);
+		resultSet.setResultSetComplete(true);
+		cleanUpAfterIngestingHeaders(id, 0);
+		awaitingRows.put(id, false);
+		return resultSet;
+	}
+
 	private ResultSet prepareErrorResultSet(long id, List<MySQLPacket> packets, ResultSet resultSet) {
-		var packet = packets.get(0);
+		var packet = packets.getFirst();
 		resultSet.setError(true);
 		resultSet.setErrorCode(Arrays.copyOfRange(packet.getBody(), 1, 3));
 		resultSet.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
