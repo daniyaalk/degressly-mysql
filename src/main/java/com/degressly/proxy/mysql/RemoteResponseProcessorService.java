@@ -1,10 +1,10 @@
 package com.degressly.proxy.mysql;
 
+import com.degressly.proxy.constants.Encoding;
 import com.degressly.proxy.dto.actions.server.Column;
 import com.degressly.proxy.dto.actions.server.ServerResponse;
-import com.degressly.proxy.constants.Encoding;
-import com.degressly.proxy.mysql.parser.RemoteTextFieldDecoderFactory;
 import com.degressly.proxy.dto.packet.MySQLPacket;
+import com.degressly.proxy.mysql.parser.RemoteFieldDecoderFactory;
 import com.degressly.proxy.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,18 +26,16 @@ public class RemoteResponseProcessorService {
 	public static final Map<Long, Boolean> awaitingRows = new HashMap<>();
 
 	@Autowired
-	RemoteTextFieldDecoderFactory remoteTextFieldDecoderFactory;
+	RemoteFieldDecoderFactory remoteFieldDecoderFactory;
 
 	private void cleanUpAfterIngestingHeaders(long taskId, int lastColumnPacket) {
 		awaitingHeaders.put(taskId, false);
 		awaitingRows.put(taskId, true);
 		partialResults.get(taskId).setPacketOffsetOfLastIngestedColumn(lastColumnPacket);
-		// partialResults.remove(taskId);
 	}
 
 	public ServerResponse processFirstPage(long id, List<MySQLPacket> packets) {
 		if (!awaitingHeaders.getOrDefault(id, true)) {
-			awaitingHeaders.putIfAbsent(id, true);
 			return partialResults.get(id);
 		}
 		var resultSet = new ServerResponse();
@@ -58,8 +56,10 @@ public class RemoteResponseProcessorService {
 	private ServerResponse prepareOKResultSet(long id, List<MySQLPacket> packets, ServerResponse serverResponse) {
 		serverResponse.setOkPacket(true);
 		var packet = packets.getFirst();
-		serverResponse.setStatusMessage(
-				(String) remoteTextFieldDecoderFactory.get(Encoding.STRING_LENGTH_ENCODED).decode(packet, 5).getLeft());
+		serverResponse
+			.setStatusMessage((String) remoteFieldDecoderFactory.getFieldDecoder(Encoding.STRING_LENGTH_ENCODED)
+				.decode(packet, 5)
+				.getLeft());
 		serverResponse.setColumnCount(0);
 		serverResponse.setResponseComplete(true);
 		cleanUpAfterIngestingHeaders(id, 0);
@@ -72,11 +72,13 @@ public class RemoteResponseProcessorService {
 		serverResponse.setError(true);
 		serverResponse.setErrorCode(Arrays.copyOfRange(packet.getBody(), 1, 3));
 		serverResponse.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
-		serverResponse.setErrorMessage(
-				(String) remoteTextFieldDecoderFactory.get(Encoding.STRING_NULL_TERMINATED).decode(packet, 5).getLeft());
+		serverResponse
+			.setErrorMessage((String) remoteFieldDecoderFactory.getFieldDecoder(Encoding.STRING_NULL_TERMINATED)
+				.decode(packet, 5)
+				.getLeft());
 		serverResponse.setColumnCount(0);
 		serverResponse.setResponseComplete(true);
-		cleanUpAfterIngestingHeaders(id, 0);
+		awaitingHeaders.remove(id);
 		awaitingRows.put(id, false);
 		return serverResponse;
 	}
@@ -85,10 +87,12 @@ public class RemoteResponseProcessorService {
 		var packet = packets.getFirst();
 		ServerResponse serverResponse = new ServerResponse();
 
-		serverResponse.setStatementId((int) remoteTextFieldDecoderFactory.get(Encoding.INT_4).decode(packet, 1).getLeft());
-		serverResponse.setColumnCount((int) remoteTextFieldDecoderFactory.get(Encoding.INT_2).decode(packet, 5).getLeft());
+		serverResponse.setStatementId(
+				(int) remoteFieldDecoderFactory.getFieldDecoder(Encoding.INT_4).decode(packet, 1).getLeft());
+		serverResponse.setColumnCount(
+				(int) remoteFieldDecoderFactory.getFieldDecoder(Encoding.INT_2).decode(packet, 5).getLeft());
 		serverResponse.setResponseComplete(true);
-//		serverResponse.setPacketOffsetOfLastIngestedColumn(0);
+		// serverResponse.setPacketOffsetOfLastIngestedColumn(0);
 		serverResponse.setOkPacket(true);
 
 		awaitingHeaders.remove(id);
@@ -104,12 +108,12 @@ public class RemoteResponseProcessorService {
 		for (int i = packetNumber; i < packets.size(); i++) {
 			MySQLPacket packet = packets.get(i);
 
-			Column column = Column.getColumnFromPacket(packet, remoteTextFieldDecoderFactory);
+			Column column = Column.getColumnFromPacket(packet, remoteFieldDecoderFactory);
 			partialResultSet.getColumnList().add(column);
 
 			if (areAllColumnsDefined(id)) {
 				log.info("Processed columns: {}", partialResultSet);
-				partialResultSet.setResponseComplete(true);
+//				partialResultSet.setResponseComplete(true);
 				cleanUpAfterIngestingHeaders(id, i);
 				break;
 			}
@@ -132,7 +136,8 @@ public class RemoteResponseProcessorService {
 				break;
 			}
 
-			partialResult.getRowList().add(ServerResponse.getRowFromTextResultSetInPacket(packet, remoteTextFieldDecoderFactory));
+			partialResult.getRowList()
+				.add(ServerResponse.getRowFromTextResultSetInPacket(packet, remoteFieldDecoderFactory));
 
 		}
 
@@ -157,7 +162,9 @@ public class RemoteResponseProcessorService {
 				break;
 			}
 
-			partialResult.getRowList().add(ServerResponse.getRowFromBinaryResultSetInPacket(packet, remoteTextFieldDecoderFactory));
+			partialResult.getRowList()
+				.add(ServerResponse.getRowFromBinaryResultSetInPacket(packet, partialResult,
+						remoteFieldDecoderFactory));
 
 		}
 
@@ -168,7 +175,7 @@ public class RemoteResponseProcessorService {
 	}
 
 	private void cleanUpAfterIngestingRows(long taskId) {
-		awaitingRows.put(taskId, false);
+		awaitingRows.remove(taskId);
 		awaitingHeaders.remove(taskId);
 		partialResults.get(taskId).setResponseComplete(true);
 		partialResults.get(taskId).setPacketOffsetOfLastIngestedColumn(0);

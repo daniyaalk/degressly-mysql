@@ -11,21 +11,21 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class RemoteTextFieldDecoderFactory {
+public class RemoteFieldDecoderFactory {
 
 	@Autowired
-	private List<TextFieldDecoder> decoders;
+	private List<FieldDecoder> decoders;
 
-	private Map<Encoding, TextFieldDecoder> decoderMap;
+	private Map<Encoding, FieldDecoder> decoderMap;
 
 	@PostConstruct
 	public void init() {
-		Map<Encoding, TextFieldDecoder> map = new HashMap<>();
+		Map<Encoding, FieldDecoder> map = new HashMap<>();
 		decoders.forEach((decoder) -> map.put(decoder.getEncoding(), decoder));
 		decoderMap = Collections.unmodifiableMap(map);
 	}
 
-	public TextFieldDecoder get(Encoding encoding) {
+	public FieldDecoder getFieldDecoder(Encoding encoding) {
 		return decoderMap.get(encoding);
 	}
 

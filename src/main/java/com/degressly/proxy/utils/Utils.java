@@ -39,4 +39,11 @@ public class Utils {
 				|| ((packet.getBody()[0] & 0xff) == 0xfe);
 	}
 
+	public static boolean checkIfFieldIsNullForBinaryResultSetRow(byte[] bitmap, int columnOffset) {
+		int bytePosition = (columnOffset + 2) / 8;
+		int bitPosition = (columnOffset + 2) % 8;
+
+		return (columnOffset & (0x01 << bitmap[bitPosition])) == 0x00;
+	}
+
 }

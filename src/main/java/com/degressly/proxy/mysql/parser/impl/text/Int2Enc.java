@@ -1,13 +1,13 @@
 package com.degressly.proxy.mysql.parser.impl.text;
 
 import com.degressly.proxy.constants.Encoding;
-import com.degressly.proxy.mysql.parser.TextFieldDecoder;
+import com.degressly.proxy.mysql.parser.FieldDecoder;
 import com.degressly.proxy.dto.packet.MySQLPacket;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Component;
 
 @Component
-public class Int2Enc implements TextFieldDecoder {
+public class Int2Enc implements FieldDecoder {
 
 	@Override
 	public Pair<Object, Integer> decode(MySQLPacket packet, int offset) {

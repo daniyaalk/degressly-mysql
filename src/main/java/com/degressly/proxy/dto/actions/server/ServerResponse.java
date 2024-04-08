@@ -1,16 +1,14 @@
 package com.degressly.proxy.dto.actions.server;
 
 import com.degressly.proxy.constants.Encoding;
-import com.degressly.proxy.mysql.parser.RemoteTextFieldDecoderFactory;
 import com.degressly.proxy.dto.packet.MySQLPacket;
+import com.degressly.proxy.mysql.parser.RemoteFieldDecoderFactory;
+import com.degressly.proxy.utils.Utils;
 import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.lang.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Data
 public class ServerResponse {
@@ -19,7 +17,7 @@ public class ServerResponse {
 
 	private List<Column> columnList = new ArrayList<>();
 
-	private List<Map<Integer, String>> rowList = new ArrayList<>();
+	private List<Map<Integer, Object>> rowList = new ArrayList<>();
 
 	private boolean responseComplete;
 
@@ -43,11 +41,11 @@ public class ServerResponse {
 	private String errorMessage;
 
 	@Nullable
-	String statusMessage;
+	private String statusMessage;
 
-	public static Map<Integer, String> getRowFromTextResultSetInPacket(MySQLPacket packet,
-																	   RemoteTextFieldDecoderFactory remoteTextFieldDecoderFactory) {
-		Map<Integer, String> row = new HashMap<>();
+	public static Map<Integer, Object> getRowFromTextResultSetInPacket(MySQLPacket packet,
+			RemoteFieldDecoderFactory remoteFieldDecoderFactory) {
+		Map<Integer, Object> row = new HashMap<>();
 
 		int byteOffset = 0, columnOffset = 0;
 
@@ -55,29 +53,50 @@ public class ServerResponse {
 
 			// Check if field is empty, denoted by 0xfb
 			// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_row.html
-			if (packet.getBody().length == 1 && ((packet.getBody()[0] & 0xff) == 0xfb)) {
+			if ((packet.getBody()[byteOffset] & 0xff) == 0xfb) {
 				row.put(columnOffset, null);
 				byteOffset++;
 				columnOffset++;
 				continue;
 			}
 
-			Pair<Object, Integer> decidedStringOffsetPair = remoteTextFieldDecoderFactory
-				.get(Encoding.STRING_LENGTH_ENCODED)
+			Pair<Object, Integer> decodedStringAndNextOffset = remoteFieldDecoderFactory
+				.getFieldDecoder(Encoding.STRING_LENGTH_ENCODED)
 				.decode(packet, byteOffset);
 
-			row.put(columnOffset, (String) decidedStringOffsetPair.getLeft());
+			row.put(columnOffset, decodedStringAndNextOffset.getLeft());
 
-			byteOffset += decidedStringOffsetPair.getRight();
+			byteOffset = decodedStringAndNextOffset.getRight();
 			columnOffset++;
 		}
 		return row;
 	}
 
-	public static Map<Integer, String> getRowFromBinaryResultSetInPacket(MySQLPacket packet,
-																	   RemoteTextFieldDecoderFactory remoteTextFieldDecoderFactory) {
-		Map<Integer, String> row = new HashMap<>();
+	public static Map<Integer, Object> getRowFromBinaryResultSetInPacket(MySQLPacket packet,
+			ServerResponse partialResult, RemoteFieldDecoderFactory remoteFieldDecoderFactory) {
+		Map<Integer, Object> row = new HashMap<>();
 
+		// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_null_bitmap
+		byte[] bitmap = Arrays.copyOfRange(packet.getBody(), 0, (partialResult.getColumnCount() + 9) / 8);
+
+		int byteOffset = 0, columnOffset = 0;
+
+		while (byteOffset < packet.getBody().length) {
+			if (Utils.checkIfFieldIsNullForBinaryResultSetRow(bitmap, columnOffset)) {
+				columnOffset++;
+				continue;
+			}
+
+			FieldType fieldType = partialResult.getColumnList().get(columnOffset).getFieldType();
+
+			Pair<Object, Integer> decodedValueAndNextOffsetAddition = remoteFieldDecoderFactory
+				.getFieldDecoder(fieldType.getEncoding())
+				.decode(packet, byteOffset);
+			row.put(columnOffset, decodedValueAndNextOffsetAddition.getLeft());
+
+			byteOffset = decodedValueAndNextOffsetAddition.getRight();
+			columnOffset++;
+		}
 
 		return row;
 	}
