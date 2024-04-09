@@ -20,7 +20,22 @@ public class IntLenEnc implements FieldDecoder, FieldEncoder {
 	@Override
 	public byte[] encode(String value) {
 
-		return new byte[0];
+		// Need to fix this, not properly parsing large numbers here
+
+		long length = Long.parseUnsignedLong(value);
+		if (length < 251) {
+			return new byte[] { (byte) (length & 0xff) };
+		}
+		else if (length < Math.pow(2, 16)) {
+			return new byte[] { (byte) 0xfc, (byte) (length & 0xff), (byte) ((length >> 8) & 0xff) };
+		}
+		else if (length >= Math.pow(2, 16) && length < Math.pow(2, 24)) {
+			return new byte[] { (byte) 0xfd, (byte) ((length >> 8) & 0xff), (byte) ((length >> 16) & 0xff) };
+		}
+		else {
+			return new byte[] { (byte) 0xfe, (byte) ((length >> 8) & 0xff), (byte) ((length >> 16) & 0xff),
+					(byte) ((length >> 24) & 0xff) };
+		}
 	}
 
 	@Override

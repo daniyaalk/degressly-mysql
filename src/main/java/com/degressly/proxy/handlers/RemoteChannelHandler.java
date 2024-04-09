@@ -53,10 +53,9 @@ public class RemoteChannelHandler extends ChannelInboundHandlerAdapter {
 	private void sendResponse(ChannelHandlerContext ctx, byte[] response) {
 		ByteBuf send = ctx.alloc().buffer();
 
-		int sendOffset = 0;
+		int sendOffset = 0, maxMessage = send.maxCapacity();
 
 		while (sendOffset < response.length) {
-			int maxMessage = send.maxCapacity();
 			int upperLimit = Math.min(response.length, maxMessage + sendOffset);
 
 			send.writeBytes(Arrays.copyOfRange(response, sendOffset, upperLimit));

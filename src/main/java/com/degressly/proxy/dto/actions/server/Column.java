@@ -2,7 +2,7 @@ package com.degressly.proxy.dto.actions.server;
 
 import com.degressly.proxy.constants.Encoding;
 import com.degressly.proxy.dto.packet.MySQLPacket;
-import com.degressly.proxy.mysql.parser.RemoteFieldDecoderFactory;
+import com.degressly.proxy.mysql.parser.RemoteFieldEncodeDecodeFactory;
 import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -33,7 +33,7 @@ public class Column {
 
 	private int decimals;
 
-	public static Column getColumnFromPacket(MySQLPacket packet, RemoteFieldDecoderFactory factory) {
+	public static Column getColumnFromPacket(MySQLPacket packet, RemoteFieldEncodeDecodeFactory factory) {
 		var column = new Column();
 		Pair<Object, Integer> catalog = factory.getFieldDecoder(Encoding.STRING_LENGTH_ENCODED).decode(packet, 0);
 		column.setCatalog((String) catalog.getLeft());

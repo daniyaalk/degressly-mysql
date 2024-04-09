@@ -45,6 +45,9 @@ public class MySQLConnectionState {
 	@Autowired
 	RemoteResponseProcessorService remoteResponseProcessorService;
 
+	@Autowired
+	RemoteResponseEncoderService remoteResponseEncoderService;
+
 	public MySQLConnectionState(long id) {
 		this.id = id;
 	}
@@ -84,31 +87,41 @@ public class MySQLConnectionState {
 			}
 		}
 
+		ServerResponse orgServerResponse;
 		if (isAuthDone && awaitingResponseResultSet) {
-			loadPartialResultSet(packets);
+			orgServerResponse = loadPartialResultSet(packets);
+
+			if (orgServerResponse.isResponseComplete()) {
+				byte[] newByteArray = remoteResponseEncoderService.encode(orgServerResponse, lastClientAction);
+				log.info("Full server response: {}", orgServerResponse);
+				log.info("Original byteArray: {}", byteArray);
+				log.info("New byteArray: {}", newByteArray);
+			}
 		}
 
 		return byteArray;
 	}
 
-	private void loadPartialResultSet(List<MySQLPacket> packets) {
-
-		switch (lastClientAction.getCommandCode()) {
+	private ServerResponse loadPartialResultSet(List<MySQLPacket> packets) {
+		return switch (lastClientAction.getCommandCode()) {
 			case COM_QUERY, COM_EXECUTE -> loadPartialResultSetForQuery(packets);
 			case COM_PREPARE -> loadPartialResultSetForCOM_PREPARE(packets);
-		}
+			default -> throw new IllegalStateException("Unexpected value: " + lastClientAction.getCommandCode());
+		};
 	}
 
-	private void loadPartialResultSetForCOM_PREPARE(List<MySQLPacket> packets) {
+	private ServerResponse loadPartialResultSetForCOM_PREPARE(List<MySQLPacket> packets) {
 		partialServerResponse = remoteResponseProcessorService.processResponseForCOM_PREPARE(id, packets);
 		log.info("{}", partialServerResponse);
 
+		var retPartialResponse = partialServerResponse;
 		if (partialServerResponse.isResponseComplete()) {
 			storePreparedStatement(partialServerResponse);
 
 			partialServerResponse = null;
 			awaitingResponseResultSet = false;
 		}
+		return retPartialResponse;
 	}
 
 	private void storePreparedStatement(ServerResponse partialServerResponse) {
@@ -119,9 +132,9 @@ public class MySQLConnectionState {
 					.build());
 	}
 
-	private void loadPartialResultSetForQuery(List<MySQLPacket> packets) {
+	private ServerResponse loadPartialResultSetForQuery(List<MySQLPacket> packets) {
 		if (Objects.isNull(partialServerResponse)) {
-			// First packet contains
+			// First packet contains number of columns
 			remoteResponseProcessorService.processFirstPage(id, packets);
 			partialServerResponse = remoteResponseProcessorService.parseColumnsForResultSet(id, packets, 1);
 		}
@@ -134,10 +147,12 @@ public class MySQLConnectionState {
 
 		log.info("{}", partialServerResponse);
 
+		var retPartialServerResponse = partialServerResponse;
 		if (partialServerResponse.isResponseComplete()) {
 			partialServerResponse = null;
 			awaitingResponseResultSet = false;
 		}
+		return retPartialServerResponse;
 	}
 
 	private MySQLClientAction convertToClientAction(MySQLPacket packet) {
@@ -146,6 +161,7 @@ public class MySQLConnectionState {
 		var action = new MySQLClientAction();
 		action.setCommandCode(commandCode);
 		action.setArgument(getClientArgument(packet, commandCode));
+		action.setSequenceNumber(packet.getHeader().getSequence());
 		return action;
 	}
 

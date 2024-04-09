@@ -5,7 +5,7 @@ import com.degressly.proxy.constants.Encoding;
 import com.degressly.proxy.dto.actions.server.Column;
 import com.degressly.proxy.dto.actions.server.ServerResponse;
 import com.degressly.proxy.dto.packet.MySQLPacket;
-import com.degressly.proxy.mysql.parser.RemoteFieldDecoderFactory;
+import com.degressly.proxy.mysql.parser.RemoteFieldEncodeDecodeFactory;
 import com.degressly.proxy.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +27,7 @@ public class RemoteResponseProcessorService {
 	public static final Map<Long, Boolean> awaitingRows = new HashMap<>();
 
 	@Autowired
-	RemoteFieldDecoderFactory remoteFieldDecoderFactory;
+	RemoteFieldEncodeDecodeFactory remoteFieldEncodeDecodeFactory;
 
 	private void cleanUpAfterIngestingHeaders(long taskId, int lastColumnPacket) {
 		awaitingHeaders.put(taskId, false);
@@ -58,7 +58,7 @@ public class RemoteResponseProcessorService {
 		serverResponse.setOkPacket(true);
 		var packet = packets.getFirst();
 		serverResponse
-			.setStatusMessage((String) remoteFieldDecoderFactory.getFieldDecoder(Encoding.STRING_LENGTH_ENCODED)
+			.setStatusMessage((String) remoteFieldEncodeDecodeFactory.getFieldDecoder(Encoding.STRING_LENGTH_ENCODED)
 				.decode(packet, 5)
 				.getLeft());
 		serverResponse.setColumnCount(0);
@@ -74,7 +74,7 @@ public class RemoteResponseProcessorService {
 		serverResponse.setErrorCode(Arrays.copyOfRange(packet.getBody(), 1, 3));
 		serverResponse.setJdbcState(Arrays.copyOfRange(packet.getBody(), 3, 5));
 		serverResponse
-			.setErrorMessage((String) remoteFieldDecoderFactory.getFieldDecoder(Encoding.STRING_NULL_TERMINATED)
+			.setErrorMessage((String) remoteFieldEncodeDecodeFactory.getFieldDecoder(Encoding.STRING_NULL_TERMINATED)
 				.decode(packet, 5)
 				.getLeft());
 		serverResponse.setColumnCount(0);
@@ -89,9 +89,9 @@ public class RemoteResponseProcessorService {
 		ServerResponse serverResponse = new ServerResponse();
 
 		serverResponse.setStatementId(
-				(int) remoteFieldDecoderFactory.getFieldDecoder(Encoding.INT_4).decode(packet, 1).getLeft());
+				(int) remoteFieldEncodeDecodeFactory.getFieldDecoder(Encoding.INT_4).decode(packet, 1).getLeft());
 		serverResponse.setColumnCount(
-				(int) remoteFieldDecoderFactory.getFieldDecoder(Encoding.INT_2).decode(packet, 5).getLeft());
+				(int) remoteFieldEncodeDecodeFactory.getFieldDecoder(Encoding.INT_2).decode(packet, 5).getLeft());
 		serverResponse.setResponseComplete(true);
 		// serverResponse.setPacketOffsetOfLastIngestedColumn(0);
 		serverResponse.setOkPacket(true);
@@ -109,7 +109,7 @@ public class RemoteResponseProcessorService {
 		for (int i = packetNumber; i < packets.size(); i++) {
 			MySQLPacket packet = packets.get(i);
 
-			Column column = Column.getColumnFromPacket(packet, remoteFieldDecoderFactory);
+			Column column = Column.getColumnFromPacket(packet, remoteFieldEncodeDecodeFactory);
 			partialResultSet.getColumnList().add(column);
 
 			if (areAllColumnsDefined(id)) {
@@ -138,9 +138,9 @@ public class RemoteResponseProcessorService {
 			}
 
 			partialResult.getRowList().add(switch (lastCommandCode) {
-				case COM_QUERY -> ServerResponse.getRowFromTextResultSetInPacket(packet, remoteFieldDecoderFactory);
+				case COM_QUERY -> ServerResponse.getRowFromTextResultSetInPacket(packet, remoteFieldEncodeDecodeFactory);
 				case COM_EXECUTE ->
-					ServerResponse.getRowFromBinaryResultSetInPacket(packet, partialResult, remoteFieldDecoderFactory);
+					ServerResponse.getRowFromBinaryResultSetInPacket(packet, partialResult, remoteFieldEncodeDecodeFactory);
 				default -> throw new IllegalStateException();
 			});
 

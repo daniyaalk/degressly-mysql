@@ -7,9 +7,11 @@ import org.springframework.lang.Nullable;
 @Data
 public class MySQLClientAction {
 
-	CommandCode commandCode;
+	private CommandCode commandCode;
+
+	public int sequenceNumber;
 
 	@Nullable
-	Object argument;
+	private Object argument;
 
 }

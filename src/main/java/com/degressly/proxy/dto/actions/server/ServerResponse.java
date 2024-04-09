@@ -2,7 +2,7 @@ package com.degressly.proxy.dto.actions.server;
 
 import com.degressly.proxy.constants.Encoding;
 import com.degressly.proxy.dto.packet.MySQLPacket;
-import com.degressly.proxy.mysql.parser.RemoteFieldDecoderFactory;
+import com.degressly.proxy.mysql.parser.RemoteFieldEncodeDecodeFactory;
 import com.degressly.proxy.utils.Utils;
 import lombok.Data;
 import org.apache.commons.lang3.tuple.Pair;
@@ -44,7 +44,7 @@ public class ServerResponse {
 	private String statusMessage;
 
 	public static Map<Integer, Object> getRowFromTextResultSetInPacket(MySQLPacket packet,
-			RemoteFieldDecoderFactory remoteFieldDecoderFactory) {
+			RemoteFieldEncodeDecodeFactory remoteFieldEncodeDecodeFactory) {
 		Map<Integer, Object> row = new HashMap<>();
 
 		int byteOffset = 0, columnOffset = 0;
@@ -60,7 +60,7 @@ public class ServerResponse {
 				continue;
 			}
 
-			Pair<Object, Integer> decodedStringAndNextOffset = remoteFieldDecoderFactory
+			Pair<Object, Integer> decodedStringAndNextOffset = remoteFieldEncodeDecodeFactory
 				.getFieldDecoder(Encoding.STRING_LENGTH_ENCODED)
 				.decode(packet, byteOffset);
 
@@ -73,7 +73,7 @@ public class ServerResponse {
 	}
 
 	public static Map<Integer, Object> getRowFromBinaryResultSetInPacket(MySQLPacket packet,
-			ServerResponse partialResult, RemoteFieldDecoderFactory remoteFieldDecoderFactory) {
+			ServerResponse partialResult, RemoteFieldEncodeDecodeFactory remoteFieldEncodeDecodeFactory) {
 		Map<Integer, Object> row = new HashMap<>();
 
 		// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_null_bitmap
@@ -90,7 +90,7 @@ public class ServerResponse {
 
 			FieldType fieldType = partialResult.getColumnList().get(columnOffset).getFieldType();
 
-			Pair<Object, Integer> decodedValueAndNextOffsetAddition = remoteFieldDecoderFactory
+			Pair<Object, Integer> decodedValueAndNextOffsetAddition = remoteFieldEncodeDecodeFactory
 				.getFieldDecoder(fieldType.getEncoding())
 				.decode(packet, byteOffset);
 			row.put(columnOffset, decodedValueAndNextOffsetAddition.getLeft());
