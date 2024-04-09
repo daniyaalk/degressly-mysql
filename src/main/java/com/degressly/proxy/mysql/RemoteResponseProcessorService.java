@@ -1,5 +1,6 @@
 package com.degressly.proxy.mysql;
 
+import com.degressly.proxy.constants.CommandCode;
 import com.degressly.proxy.constants.Encoding;
 import com.degressly.proxy.dto.actions.server.Column;
 import com.degressly.proxy.dto.actions.server.ServerResponse;
@@ -121,7 +122,7 @@ public class RemoteResponseProcessorService {
 		return partialResultSet;
 	}
 
-	public ServerResponse parseRowsForCOM_QUERY(long id, List<MySQLPacket> packets) {
+	public ServerResponse parseRowsForResultSet(long id, List<MySQLPacket> packets, CommandCode lastCommandCode) {
 		var partialResult = partialResults.get(id);
 
 		if (!awaitingRows.getOrDefault(id, false)) {
@@ -136,35 +137,12 @@ public class RemoteResponseProcessorService {
 				break;
 			}
 
-			partialResult.getRowList()
-				.add(ServerResponse.getRowFromTextResultSetInPacket(packet, remoteFieldDecoderFactory));
-
-		}
-
-		if (partialResults.containsKey(id)) {
-			partialResults.get(id).setPacketOffsetOfLastIngestedColumn(-1);
-		}
-		return partialResult;
-	}
-
-	public ServerResponse parseRowsForCOM_EXECUTE(long id, List<MySQLPacket> packets) {
-		var partialResult = partialResults.get(id);
-
-		if (!awaitingRows.getOrDefault(id, false)) {
-			return partialResult;
-		}
-
-		for (int i = partialResult.getPacketOffsetOfLastIngestedColumn() + 1; i < packets.size(); i++) {
-			var packet = packets.get(i);
-			log.info("Packet for row parsing: {}", packet);
-			if (Utils.isEOFPacket(packet)) {
-				cleanUpAfterIngestingRows(id);
-				break;
-			}
-
-			partialResult.getRowList()
-				.add(ServerResponse.getRowFromBinaryResultSetInPacket(packet, partialResult,
-						remoteFieldDecoderFactory));
+			partialResult.getRowList().add(switch (lastCommandCode) {
+				case COM_QUERY -> ServerResponse.getRowFromTextResultSetInPacket(packet, remoteFieldDecoderFactory);
+				case COM_EXECUTE ->
+					ServerResponse.getRowFromBinaryResultSetInPacket(packet, partialResult, remoteFieldDecoderFactory);
+				default -> throw new IllegalStateException();
+			});
 
 		}
 
