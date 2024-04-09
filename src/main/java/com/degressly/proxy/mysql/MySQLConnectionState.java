@@ -94,7 +94,7 @@ public class MySQLConnectionState {
 	private void loadPartialResultSet(List<MySQLPacket> packets) {
 
 		switch (lastClientAction.getCommandCode()) {
-			case COM_QUERY, COM_EXECUTE -> loadPartialResultSetForCOM_QUERY(packets);
+			case COM_QUERY, COM_EXECUTE -> loadPartialResultSetForQuery(packets);
 			case COM_PREPARE -> loadPartialResultSetForCOM_PREPARE(packets);
 		}
 	}
@@ -119,7 +119,7 @@ public class MySQLConnectionState {
 					.build());
 	}
 
-	private void loadPartialResultSetForCOM_QUERY(List<MySQLPacket> packets) {
+	private void loadPartialResultSetForQuery(List<MySQLPacket> packets) {
 		if (Objects.isNull(partialServerResponse)) {
 			// First packet contains
 			remoteResponseProcessorService.processFirstPage(id, packets);
@@ -129,7 +129,15 @@ public class MySQLConnectionState {
 			partialServerResponse = remoteResponseProcessorService.parseColumnsForResultSet(id, packets, 0);
 		}
 
-		partialServerResponse = remoteResponseProcessorService.parseRowsForCOM_QUERY(id, packets);
+		if (CommandCode.COM_QUERY.equals(lastClientAction.getCommandCode())) {
+			partialServerResponse = remoteResponseProcessorService.parseRowsForCOM_QUERY(id, packets);
+		}
+		else if (CommandCode.COM_EXECUTE.equals(lastClientAction.getCommandCode())) {
+			partialServerResponse = remoteResponseProcessorService.parseRowsForCOM_EXECUTE(id, packets);
+		}
+		else {
+			throw new IllegalStateException();
+		}
 
 		log.info("{}", partialServerResponse);
 

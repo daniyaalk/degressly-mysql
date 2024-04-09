@@ -113,7 +113,7 @@ public class RemoteResponseProcessorService {
 
 			if (areAllColumnsDefined(id)) {
 				log.info("Processed columns: {}", partialResultSet);
-//				partialResultSet.setResponseComplete(true);
+				// partialResultSet.setResponseComplete(true);
 				cleanUpAfterIngestingHeaders(id, i);
 				break;
 			}

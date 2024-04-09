@@ -43,7 +43,7 @@ public class Utils {
 		int bytePosition = (columnOffset + 2) / 8;
 		int bitPosition = (columnOffset + 2) % 8;
 
-		return (columnOffset & (0x01 << bitmap[bitPosition])) == 0x00;
+		return (bitmap[bytePosition] & (0x01 << bitPosition)) == 0x01;
 	}
 
 }

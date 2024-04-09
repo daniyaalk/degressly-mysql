@@ -79,10 +79,11 @@ public class ServerResponse {
 		// https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_binary_resultset.html#sect_protocol_binary_resultset_row_null_bitmap
 		byte[] bitmap = Arrays.copyOfRange(packet.getBody(), 0, (partialResult.getColumnCount() + 9) / 8);
 
-		int byteOffset = 0, columnOffset = 0;
+		int byteOffset = bitmap.length + 1, columnOffset = 0;
 
 		while (byteOffset < packet.getBody().length) {
 			if (Utils.checkIfFieldIsNullForBinaryResultSetRow(bitmap, columnOffset)) {
+				row.put(columnOffset, null);
 				columnOffset++;
 				continue;
 			}
