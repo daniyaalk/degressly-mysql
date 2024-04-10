@@ -54,7 +54,7 @@ public class Column {
 		column.setOrgColumnName((String) orgColumnName.getLeft());
 		Pair<Object, Integer> fixedFieldLength = factory.getFieldDecoder(Encoding.INT_LENGTH_ENCODED)
 			.decode(packet, orgColumnName.getRight());
-		column.setFixedFieldLength((int) fixedFieldLength.getLeft());
+		column.setFixedFieldLength(((Long) fixedFieldLength.getLeft()).intValue());
 		Pair<Object, Integer> characterSet = factory.getFieldDecoder(Encoding.INT_2)
 			.decode(packet, fixedFieldLength.getRight());
 		column.setCharSet((int) characterSet.getLeft());

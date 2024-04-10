@@ -4,19 +4,28 @@ import com.degressly.proxy.dto.packet.MySQLPacket;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.Map;
+
 @UtilityClass
 public class Utils {
 
-	public static Pair<Integer, Integer> calculateIntLenEnc(byte[] bytes, int offset) {
-		int lsb = bytes[offset] & 0xff;
+	private static final Map<Long, Integer> byteCountMap = Map.of(251L, 1, 252L, 2, 253L, 4, 254L, 8);
 
-		return switch (lsb) {
-			case 251 -> Pair.of(lsb + ((bytes[offset + 1] & 0xff) << 8), 2);
-			case 252 -> Pair.of(lsb + ((bytes[offset + 1] & 0xff) << 8) + ((bytes[offset + 2] & 0xff) << 16), 3);
-			case 253 -> Pair.of(lsb + ((bytes[offset + 1] & 0xff) << 8) + ((bytes[offset + 2] & 0xff) << 16)
-					+ ((bytes[offset + 3] & 0xff) << 24), 4);
-			default -> Pair.of(lsb, 1);
-		};
+	public static Pair<Long, Integer> calculateIntLenEnc(byte[] bytes, int offset) {
+
+		long lsb = bytes[offset] & 0xff;
+
+		if (lsb < 251L) {
+			return Pair.of(lsb, 1);
+		}
+
+		long finalValue = 0;
+
+		for (int i = 0; i < byteCountMap.get(lsb); i++) {
+			finalValue += ((bytes[offset + 1 + i] & 0xffL) << i * 8);
+		}
+
+		return Pair.of(finalValue, byteCountMap.get(lsb) + 1);
 	}
 
 	public static byte[] getByteArrayForIntLenEnc(long length) {
@@ -26,15 +35,14 @@ public class Utils {
 			return new byte[] { (byte) (length & 0xff) };
 		}
 		else if (length < Math.pow(2, 16)) {
-			return new byte[] { (byte) 0xfc, (byte) ((length - 251) & 0xff), (byte) (((length - 251) >> 8) & 0xff) };
+			return new byte[] { (byte) 0xfc, (byte) (length & 0xff), (byte) ((length >> 8) & 0xff) };
 		}
 		else if (length >= Math.pow(2, 16) && length < Math.pow(2, 24)) {
-			return new byte[] { (byte) 0xfd, (byte) (((length - 252) >> 8) & 0xff),
-					(byte) (((length - 252) >> 16) & 0xff) };
+			return new byte[] { (byte) 0xfd, (byte) ((length >> 8) & 0xff), (byte) ((length >> 16) & 0xff) };
 		}
 		else {
-			return new byte[] { (byte) 0xfe, (byte) (((length - 253) >> 8) & 0xff),
-					(byte) (((length - 253) >> 16) & 0xff), (byte) ((length >> 24) & 0xff) };
+			return new byte[] { (byte) 0xfe, (byte) ((length >> 8) & 0xff), (byte) ((length >> 16) & 0xff),
+					(byte) ((length >> 24) & 0xff) };
 		}
 	}
 

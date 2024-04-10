@@ -17,14 +17,14 @@ public class StringLenEnc implements FieldDecoder, FieldEncoder {
 
 	@Override
 	public Pair<Object, Integer> decode(MySQLPacket packet, int offset) {
-		Pair<Integer, Integer> intLenEnc = Utils.calculateIntLenEnc(packet.getBody(), offset);
+		Pair<Long, Integer> intLenEnc = Utils.calculateIntLenEnc(packet.getBody(), offset);
 		var fieldLength = intLenEnc.getLeft();
 		var sizeLength = intLenEnc.getRight();
 
-		String decodedValue = new String(
-				Arrays.copyOfRange(packet.getBody(), offset + sizeLength, offset + sizeLength + fieldLength));
+		String decodedValue = new String(Arrays.copyOfRange(packet.getBody(), offset + sizeLength,
+				offset + sizeLength + fieldLength.intValue()));
 
-		return Pair.of(decodedValue, offset + sizeLength + fieldLength);
+		return Pair.of(decodedValue, offset + sizeLength + fieldLength.intValue());
 	}
 
 	@Override

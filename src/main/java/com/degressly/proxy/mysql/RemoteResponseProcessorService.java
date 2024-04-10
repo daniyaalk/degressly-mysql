@@ -50,7 +50,7 @@ public class RemoteResponseProcessorService {
 			return prepareErrorResultSet(id, packets, resultSet);
 		}
 
-		resultSet.setColumnCount(Utils.calculateIntLenEnc(packets.getFirst().getBody(), 0).getLeft());
+		resultSet.setColumnCount(Utils.calculateIntLenEnc(packets.getFirst().getBody(), 0).getLeft().intValue());
 		return resultSet;
 	}
 
@@ -133,6 +133,8 @@ public class RemoteResponseProcessorService {
 			var packet = packets.get(i);
 			log.info("Packet for row parsing: {}", packet);
 			if (Utils.isEOFPacket(packet)) {
+				partialResult.setNumberOfWarnings((int)remoteFieldEncodeDecodeFactory.getFieldDecoder(Encoding.INT_2).decode(packet, 1).getLeft());
+				partialResult.setServerStatusBitmask(Arrays.copyOfRange(packet.getBody(), 3, 5));
 				cleanUpAfterIngestingRows(id);
 				break;
 			}

@@ -13,10 +13,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class RemoteResponseEncoderService {
@@ -45,19 +42,39 @@ public class RemoteResponseEncoderService {
 
 	public byte[] encode(ServerResponse response, MySQLClientAction lastAction) {
 		CommandCode responseFor = lastAction.getCommandCode();
-		return switch (responseFor) {
-			case COM_QUERY -> prepareByteArrayForTextResultSet(response, lastAction);
-			case COM_EXECUTE -> prepareByteArrayForBinaryResultSet(response, lastAction);
-			default -> null;
-		};
+		if (!response.isError()) {
+			return switch (responseFor) {
+				case COM_QUERY -> prepareByteArrayForTextResultSet(lastAction, response);
+				case COM_EXECUTE -> prepareByteArrayForBinaryResultSet(response, lastAction);
+				default -> null;
+			};
+		}
+		return null;
 	}
 
-	private byte[] prepareByteArrayForTextResultSet(ServerResponse response, MySQLClientAction lastAction) {
+	private byte[] prepareByteArrayForTextResultSet(MySQLClientAction lastAction, ServerResponse response) {
 		byte[] columnCountPacket = getColumnCountPacket(lastAction, response.getColumnCount());
 		byte[] columnDefinitions = getColumnDefinitionPackets(lastAction, response);
 		byte[] rowDefinitions = getTextRowDefinitions(lastAction, response);
+		byte[] eofPacket = getEofPacket(lastAction, response);
 		byte[] metadataArray = ArrayUtils.addAll(columnCountPacket, columnDefinitions);
-		return ArrayUtils.addAll(metadataArray, rowDefinitions);
+		byte[] rowsDataArray = ArrayUtils.addAll(rowDefinitions, eofPacket);
+		return ArrayUtils.addAll(metadataArray, rowsDataArray);
+	}
+
+	private byte[] getEofPacket(MySQLClientAction lastAction, ServerResponse response) {
+		byte[] eofByteAndPacketWarningCount = ArrayUtils.addAll(
+				new byte[]{(byte)0xfe},
+				int2ByteEncoder.encode(String.valueOf(response.getNumberOfWarnings()))
+		);
+		byte[] body =
+				ArrayUtils.addAll(
+				eofByteAndPacketWarningCount,
+				Objects.nonNull(response.getServerStatusBitmask())
+				? response.getServerStatusBitmask() : new byte[] { 0x00, 0x00 }
+		);
+		// Adding phantom bytes here - need to understand why this is happening
+		return createPacket(lastAction, ArrayUtils.addAll(body, new byte[]{0x00, 0x00}));
 	}
 
 	private byte[] getTextRowDefinitions(MySQLClientAction lastAction, ServerResponse response) {

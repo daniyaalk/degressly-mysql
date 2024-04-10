@@ -43,6 +43,12 @@ public class ServerResponse {
 	@Nullable
 	private String statusMessage;
 
+	@Nullable
+	private int numberOfWarnings;
+
+	@Nullable
+	private byte[] serverStatusBitmask;
+
 	public static Map<Integer, Object> getRowFromTextResultSetInPacket(MySQLPacket packet,
 			RemoteFieldEncodeDecodeFactory remoteFieldEncodeDecodeFactory) {
 		Map<Integer, Object> row = new HashMap<>();
