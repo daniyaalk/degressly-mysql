@@ -19,6 +19,34 @@ public class Utils {
 		};
 	}
 
+	public static byte[] getByteArrayForIntLenEnc(long length) {
+		// Need to fix this, not properly parsing large numbers here
+
+		if (length < 251) {
+			return new byte[] { (byte) (length & 0xff) };
+		}
+		else if (length < Math.pow(2, 16)) {
+			return new byte[] { (byte) 0xfc, (byte) ((length - 251) & 0xff), (byte) (((length - 251) >> 8) & 0xff) };
+		}
+		else if (length >= Math.pow(2, 16) && length < Math.pow(2, 24)) {
+			return new byte[] { (byte) 0xfd, (byte) (((length - 252) >> 8) & 0xff),
+					(byte) (((length - 252) >> 16) & 0xff) };
+		}
+		else {
+			return new byte[] { (byte) 0xfe, (byte) (((length - 253) >> 8) & 0xff),
+					(byte) (((length - 253) >> 16) & 0xff), (byte) ((length >> 24) & 0xff) };
+		}
+	}
+
+	public byte[] getByteArrayForPacketSize(int length) {
+		byte[] ret = new byte[3];
+		ret[0] = (byte) (length & 0xff);
+		ret[1] = (byte) ((length >> 8) & 0xff);
+		ret[2] = (byte) ((length >> 16) & 0xff);
+
+		return ret;
+	}
+
 	// public byte[] getDataFieldLengthBytes(int count) {
 	// if (count >)
 	// }

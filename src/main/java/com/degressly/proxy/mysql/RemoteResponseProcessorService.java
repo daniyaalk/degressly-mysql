@@ -138,9 +138,10 @@ public class RemoteResponseProcessorService {
 			}
 
 			partialResult.getRowList().add(switch (lastCommandCode) {
-				case COM_QUERY -> ServerResponse.getRowFromTextResultSetInPacket(packet, remoteFieldEncodeDecodeFactory);
-				case COM_EXECUTE ->
-					ServerResponse.getRowFromBinaryResultSetInPacket(packet, partialResult, remoteFieldEncodeDecodeFactory);
+				case COM_QUERY ->
+					ServerResponse.getRowFromTextResultSetInPacket(packet, remoteFieldEncodeDecodeFactory);
+				case COM_EXECUTE -> ServerResponse.getRowFromBinaryResultSetInPacket(packet, partialResult,
+						remoteFieldEncodeDecodeFactory);
 				default -> throw new IllegalStateException();
 			});
 

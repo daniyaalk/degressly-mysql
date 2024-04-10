@@ -9,7 +9,7 @@ public class MySQLClientAction {
 
 	private CommandCode commandCode;
 
-	public int sequenceNumber;
+	private int sequenceNumber;
 
 	@Nullable
 	private Object argument;

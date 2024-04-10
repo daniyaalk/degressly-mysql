@@ -5,6 +5,8 @@ import com.degressly.proxy.mysql.parser.FieldDecoder;
 import com.degressly.proxy.mysql.parser.FieldEncoder;
 import com.degressly.proxy.dto.packet.MySQLPacket;
 import com.degressly.proxy.utils.Utils;
+import io.micrometer.common.util.StringUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +29,12 @@ public class StringLenEnc implements FieldDecoder, FieldEncoder {
 
 	@Override
 	public byte[] encode(String value) {
-		return new byte[0];
+		if (StringUtils.isBlank(value)) {
+			return new byte[] { (byte) 0 & 0xff };
+		}
+		byte[] size = Utils.getByteArrayForIntLenEnc(value.length());
+		byte[] string = value.getBytes();
+		return ArrayUtils.addAll(size, string);
 	}
 
 	@Override

@@ -94,8 +94,8 @@ public class MySQLConnectionState {
 			if (orgServerResponse.isResponseComplete()) {
 				byte[] newByteArray = remoteResponseEncoderService.encode(orgServerResponse, lastClientAction);
 				log.info("Full server response: {}", orgServerResponse);
-				log.info("Original byteArray: {}", byteArray);
-				log.info("New byteArray: {}", newByteArray);
+				log.info("Original byteArray: {}", HexFormat.of().withDelimiter(" ").formatHex(byteArray));
+				log.info("New byteArray: {}", HexFormat.of().withDelimiter(" ").formatHex(newByteArray));
 			}
 		}
 

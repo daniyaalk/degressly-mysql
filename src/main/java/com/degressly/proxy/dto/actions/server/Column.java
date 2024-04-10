@@ -45,7 +45,7 @@ public class Column {
 		column.setTableName((String) tableName.getLeft());
 		Pair<Object, Integer> orgTableName = factory.getFieldDecoder(Encoding.STRING_LENGTH_ENCODED)
 			.decode(packet, tableName.getRight());
-		column.setOrgColumnName((String) orgTableName.getLeft());
+		column.setOrgTableName((String) orgTableName.getLeft());
 		Pair<Object, Integer> columnName = factory.getFieldDecoder(Encoding.STRING_LENGTH_ENCODED)
 			.decode(packet, orgTableName.getRight());
 		column.setColumnName((String) columnName.getLeft());
@@ -66,7 +66,7 @@ public class Column {
 		Pair<Object, Integer> flags = factory.getFieldDecoder(Encoding.INT_2).decode(packet, type.getRight());
 		column.setFlags((int) flags.getLeft());
 		Pair<Object, Integer> decimals = factory.getFieldDecoder(Encoding.INT_1).decode(packet, flags.getRight());
-		column.setFlags((int) decimals.getLeft());
+		column.setDecimals((int) decimals.getLeft());
 		return column;
 	}
 
