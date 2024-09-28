@@ -52,16 +52,6 @@ public class RemoteResponseEncoderService {
 		return null;
 	}
 
-	private byte[] prepareByteArrayForTextResultSet(MySQLClientAction lastAction, ServerResponse response) {
-		byte[] columnCountPacket = getColumnCountPacket(lastAction, response.getColumnCount());
-		byte[] columnDefinitions = getColumnDefinitionPackets(lastAction, response);
-		byte[] rowDefinitions = getTextRowDefinitions(lastAction, response);
-		byte[] eofPacket = getEofPacket(lastAction, response);
-		byte[] metadataArray = ArrayUtils.addAll(columnCountPacket, columnDefinitions);
-		byte[] rowsDataArray = ArrayUtils.addAll(rowDefinitions, eofPacket);
-		return ArrayUtils.addAll(metadataArray, rowsDataArray);
-	}
-
 	private byte[] getEofPacket(MySQLClientAction lastAction, ServerResponse response) {
 		byte[] eofByteAndPacketWarningCount = ArrayUtils.addAll(
 				new byte[]{(byte)0xfe},
@@ -92,6 +82,36 @@ public class RemoteResponseEncoderService {
 			}
 			rowDefinitionBytes
 				.addAll(primitiveArrayToObjectArray(createPacket(lastAction, objectArrayToPrimitive(rowBytes))));
+		}
+
+		return objectArrayToPrimitive(rowDefinitionBytes);
+	}
+
+	private byte[] getBinaryRowDefinitions(MySQLClientAction lastAction, ServerResponse response) {
+		var rows = response.getRowList();
+		List<Byte> rowDefinitionBytes = new ArrayList<>();
+
+		for (Map<Integer, Object> row : rows) {
+			List<Byte> rowBytes = new ArrayList<>();
+
+			// Initialize null bitmask with zeroes
+			for (int i=0; i < response.getColumnCount() + 7 + 2; i++) {
+				rowBytes.add((byte) 0x00);
+			}
+
+			// Mark null bits as 1
+
+//			for (int i = 0; i <= )
+
+			for (Map.Entry<Integer, Object> entry : row.entrySet()) {
+				if (entry.getValue() == null) {
+					rowBytes.add((byte) 0xfb);
+					continue;
+				}
+				rowBytes.addAll(primitiveArrayToObjectArray(stringLenEncEncoder.encode((String) entry.getValue())));
+			}
+			rowDefinitionBytes
+					.addAll(primitiveArrayToObjectArray(createPacket(lastAction, objectArrayToPrimitive(rowBytes))));
 		}
 
 		return objectArrayToPrimitive(rowDefinitionBytes);
@@ -142,7 +162,23 @@ public class RemoteResponseEncoderService {
 	}
 
 	private byte[] prepareByteArrayForBinaryResultSet(ServerResponse response, MySQLClientAction lastAction) {
-		return new byte[0];
+		byte[] columnCountPacket = getColumnCountPacket(lastAction, response.getColumnCount());
+		byte[] columnDefinitions = getColumnDefinitionPackets(lastAction, response);
+		byte[] rowDefinitions = getTextRowDefinitions(lastAction, response);
+		byte[] eofPacket = getEofPacket(lastAction, response);
+		byte[] metadataArray = ArrayUtils.addAll(columnCountPacket, columnDefinitions);
+		byte[] rowsDataArray = ArrayUtils.addAll(rowDefinitions, eofPacket);
+		return ArrayUtils.addAll(metadataArray, rowsDataArray);
+	}
+
+	private byte[] prepareByteArrayForTextResultSet(MySQLClientAction lastAction, ServerResponse response) {
+		byte[] columnCountPacket = getColumnCountPacket(lastAction, response.getColumnCount());
+		byte[] columnDefinitions = getColumnDefinitionPackets(lastAction, response);
+		byte[] rowDefinitions = getBinaryRowDefinitions(lastAction, response);
+		byte[] eofPacket = getEofPacket(lastAction, response);
+		byte[] metadataArray = ArrayUtils.addAll(columnCountPacket, columnDefinitions);
+		byte[] rowsDataArray = ArrayUtils.addAll(rowDefinitions, eofPacket);
+		return ArrayUtils.addAll(metadataArray, rowsDataArray);
 	}
 
 	private byte[] getColumnCountPacket(MySQLClientAction lastAction, int columnCount) {
