@@ -42,7 +42,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter {
 		b.group(clientChannel.eventLoop())
 			.channel(clientChannel.getClass())
 			.handler(applicationContext.getBean(RemoteChannelHandler.class, mySQLConnectionState));
-		ChannelFuture f = b.connect("172.29.56.7", 3306);
+		ChannelFuture f = b.connect("localhost", 3307);
 		var remoteChannel = f.channel();
 		mySQLConnectionState.setRemoteChannel(remoteChannel);
 	}

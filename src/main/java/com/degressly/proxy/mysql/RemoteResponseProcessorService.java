@@ -64,7 +64,9 @@ public class RemoteResponseProcessorService {
 		serverResponse.setColumnCount(0);
 		serverResponse.setResponseComplete(true);
 		cleanUpAfterIngestingHeaders(id, 0);
-		awaitingRows.put(id, false);
+		awaitingRows.remove(id);
+		awaitingHeaders.remove(id);
+		partialResults.get(id).setResponseComplete(true);
 		return serverResponse;
 	}
 
@@ -80,7 +82,7 @@ public class RemoteResponseProcessorService {
 		serverResponse.setColumnCount(0);
 		serverResponse.setResponseComplete(true);
 		awaitingHeaders.remove(id);
-		awaitingRows.put(id, false);
+		awaitingRows.remove(id);
 		return serverResponse;
 	}
 
@@ -126,6 +128,7 @@ public class RemoteResponseProcessorService {
 		var partialResult = partialResults.get(id);
 
 		if (!awaitingRows.getOrDefault(id, false)) {
+			cleanUpAfterIngestingRows(id);
 			return partialResult;
 		}
 

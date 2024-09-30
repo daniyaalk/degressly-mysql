@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class ProxyServer {
 
-	private static final int port = 3307;
+	private static final int port = 3207;
 
 	@Autowired
 	private ChannelInitializer<SocketChannel> initializer;
